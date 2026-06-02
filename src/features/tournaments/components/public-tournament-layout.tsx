@@ -56,12 +56,6 @@ export async function PublicTournamentLayout({
                   />
                 </div>
                 <div className="min-w-0">
-                  <p className={`text-xs font-semibold uppercase tracking-[0.26em] sm:text-sm ${BRAND.classes.accentText}`}>
-                    {BRAND.appName}
-                  </p>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.22em] text-slate-500 sm:text-sm">
-                    {tournament.organizationName}
-                  </p>
                   <h1 className="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
                     {tournament.name}
                   </h1>

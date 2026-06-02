@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: BRAND.appName,
   description: BRAND.tagline,
+  icons: {
+    icon: BRAND.logoPath,
+    apple: BRAND.logoPath,
+    shortcut: BRAND.logoPath,
+  },
 };
 
 export default function RootLayout({
