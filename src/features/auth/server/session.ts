@@ -1,10 +1,9 @@
 import { createHash, randomBytes } from "node:crypto";
 
-import { UserRole } from "@prisma/client";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-import type { AuthUser } from "@/features/auth/types/auth.types";
+import type { AppUserRole, AuthUser } from "@/features/auth/types/auth.types";
 import { prisma } from "@/lib/prisma";
 
 const SESSION_COOKIE_NAME = "sports_platform_session";
@@ -30,8 +29,8 @@ function getSessionExpiryDate() {
   return new Date(Date.now() + SESSION_DURATION_MS);
 }
 
-export function canManageDashboard(role: UserRole) {
-  return role === UserRole.OWNER || role === UserRole.ADMIN;
+export function canManageDashboard(role: AppUserRole) {
+  return role === "OWNER" || role === "ADMIN";
 }
 
 export async function createUserSession(userId: string) {
