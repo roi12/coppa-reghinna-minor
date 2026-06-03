@@ -148,23 +148,12 @@ export function PublicTeamRegistrationForm({
       </section>
 
       <section className="grid w-full max-w-full min-w-0 gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="text-xl font-semibold tracking-tight text-slate-950">Rosa squadra</h2>
-            <p className="mt-1 text-sm text-slate-600">
-              Inserisci da 5 a 11 giocatori. I numeri maglia devono essere interi positivi e non
-              possono ripetersi nella stessa squadra.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={addPlayer}
-            disabled={players.length >= MAX_PLAYERS}
-            data-testid="add-player-button"
-            className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:w-fit"
-          >
-            Aggiungi giocatore
-          </button>
+        <div className="min-w-0">
+          <h2 className="text-xl font-semibold tracking-tight text-slate-950">Rosa squadra</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Inserisci da 5 a 11 giocatori. I numeri maglia devono essere interi positivi e non
+            possono ripetersi nella stessa squadra.
+          </p>
         </div>
 
         <p
@@ -253,6 +242,18 @@ export function PublicTeamRegistrationForm({
               </div>
             </article>
           ))}
+        </div>
+
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+          <button
+            type="button"
+            onClick={addPlayer}
+            disabled={players.length >= MAX_PLAYERS}
+            data-testid="add-player-button"
+            className="w-full rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-400 sm:w-fit"
+          >
+            Aggiungi giocatore
+          </button>
         </div>
       </section>
 

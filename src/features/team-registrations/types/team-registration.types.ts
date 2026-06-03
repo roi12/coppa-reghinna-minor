@@ -52,3 +52,16 @@ export type TeamRegistrationDetail = TeamRegistrationSummary & {
   reviewedByName: string | null;
   players: TeamRegistrationRosterPlayer[];
 };
+
+export type TeamRegistrationManageLinkReveal = {
+  managePath: string;
+  manageUrl: string;
+};
+
+export type TeamRegistrationManageDetail = TeamRegistrationDetail & {
+  tournamentSlug: string;
+  tournamentName: string;
+  captainManageTokenIssuedAt: Date | null;
+  captainManageTokenLastUsedAt: Date | null;
+  captainManageTokenRevokedAt: Date | null;
+};

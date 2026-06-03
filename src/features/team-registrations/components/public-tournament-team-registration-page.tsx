@@ -2,7 +2,9 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
+import { CaptainManageLinkReveal } from "@/features/team-registrations/components/captain-manage-link-reveal";
 import { PublicTeamRegistrationForm } from "@/features/team-registrations/components/public-team-registration-form";
+import type { TeamRegistrationManageLinkReveal } from "@/features/team-registrations/types/team-registration.types";
 import { getTournamentBySlug } from "@/features/tournaments/server/get-tournament-by-slug";
 import { BRAND } from "@/lib/brand";
 import type { DashboardFeedback } from "@/lib/dashboard-feedback";
@@ -11,11 +13,13 @@ import { formatDateRangeLabel } from "@/lib/format-date";
 type PublicTournamentTeamRegistrationPageProps = {
   slug: string;
   feedback: DashboardFeedback | null;
+  manageLinkReveal: TeamRegistrationManageLinkReveal | null;
 };
 
 export async function PublicTournamentTeamRegistrationPage({
   slug,
   feedback,
+  manageLinkReveal,
 }: PublicTournamentTeamRegistrationPageProps) {
   const tournament = await getTournamentBySlug(slug);
 
@@ -118,6 +122,10 @@ export async function PublicTournamentTeamRegistrationPage({
 
           <FeedbackBanner feedback={feedback} />
         </div>
+
+        {manageLinkReveal ? (
+          <CaptainManageLinkReveal tournamentSlug={slug} reveal={manageLinkReveal} />
+        ) : null}
 
         {registrationsOpen ? (
           <div className="mt-6 w-full max-w-full min-w-0">

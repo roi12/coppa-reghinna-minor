@@ -155,6 +155,10 @@ model TeamRegistration {
   captainPhone     String
   teamName         String
   notes            String?
+  captainManageTokenHash       String?    @unique
+  captainManageTokenIssuedAt   DateTime?
+  captainManageTokenLastUsedAt DateTime?
+  captainManageTokenRevokedAt  DateTime?
   status           TeamRegistrationStatus @default(PENDING)
   reviewedAt       DateTime?
   reviewedByUserId String?

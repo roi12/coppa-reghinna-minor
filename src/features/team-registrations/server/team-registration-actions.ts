@@ -6,6 +6,11 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOwnerOrAdmin } from "@/features/auth/server/session";
+import {
+  generateCaptainManageToken,
+  hashCaptainManageToken,
+  storeCaptainManageLinkFlash,
+} from "@/features/team-registrations/server/captain-manage-link";
 import { reviewTeamRegistrationSchema } from "@/features/team-registrations/schemas/review-team-registration.schema";
 import { submitTeamRegistrationSchema } from "@/features/team-registrations/schemas/submit-team-registration.schema";
 import { revalidateTournamentPaths } from "@/features/tournaments/server/revalidate-tournament-paths";
@@ -178,6 +183,8 @@ export async function submitTeamRegistrationAction(formData: FormData) {
     );
   }
 
+  const captainManageToken = generateCaptainManageToken();
+
   await prisma.teamRegistration.create({
     data: {
       tournamentId: tournament.id,
@@ -187,6 +194,8 @@ export async function submitTeamRegistrationAction(formData: FormData) {
       captainPhone: parsed.data.captainPhone,
       teamName: parsed.data.teamName,
       notes: parsed.data.notes || null,
+      captainManageTokenHash: hashCaptainManageToken(captainManageToken),
+      captainManageTokenIssuedAt: new Date(),
       players: {
         create: parsed.data.players.map((player, index) => ({
           firstName: player.firstName,
@@ -198,6 +207,8 @@ export async function submitTeamRegistrationAction(formData: FormData) {
       },
     },
   });
+
+  await storeCaptainManageLinkFlash(tournamentSlug, captainManageToken);
 
   return redirectWithMessage(
     registrationPath,

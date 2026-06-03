@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { randomBytes, scryptSync } from "node:crypto";
 
 import { TournamentFormat, TournamentStatus, UserRole } from "@prisma/client";

@@ -1,8 +1,12 @@
+import { unstable_noStore as noStore } from "next/cache";
 import type { Metadata } from "next";
 
 import { PublicTournamentTeamRegistrationPage } from "@/features/team-registrations/components/public-tournament-team-registration-page";
+import { readCaptainManageLinkFlash } from "@/features/team-registrations/server/captain-manage-link";
 import { buildPublicTournamentMetadata } from "@/features/tournaments/server/build-public-tournament-metadata";
 import { readDashboardFeedback } from "@/lib/dashboard-feedback";
+
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -27,7 +31,19 @@ export default async function TournamentRegisterTeamPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [{ slug }, feedback] = await Promise.all([params, readDashboardFeedback(searchParams)]);
+  noStore();
 
-  return <PublicTournamentTeamRegistrationPage slug={slug} feedback={feedback} />;
+  const { slug } = await params;
+  const [feedback, manageLinkReveal] = await Promise.all([
+    readDashboardFeedback(searchParams),
+    readCaptainManageLinkFlash(slug),
+  ]);
+
+  return (
+    <PublicTournamentTeamRegistrationPage
+      slug={slug}
+      feedback={feedback}
+      manageLinkReveal={manageLinkReveal}
+    />
+  );
 }
