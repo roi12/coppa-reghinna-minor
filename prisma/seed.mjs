@@ -114,7 +114,7 @@ async function main() {
       sport: "Futsal",
       seasonLabel: "Estate 2026",
       format: TournamentFormat.ROUND_ROBIN,
-      locationLabel: "Maiori",
+      locationLabel: "Minori",
       status: TournamentStatus.PUBLISHED,
       startsAt: new Date("2026-07-01T18:00:00.000Z"),
       endsAt: new Date("2026-07-31T22:00:00.000Z"),
