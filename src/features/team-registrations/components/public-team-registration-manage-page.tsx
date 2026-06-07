@@ -1,5 +1,6 @@
 import type { TeamRegistrationManageDetail } from "@/features/team-registrations/types/team-registration.types";
 import { formatDateTimeLabel } from "@/lib/format-date";
+import { TOURNAMENT_DOCUMENTS } from "@/lib/tournament-documents";
 
 type PublicTeamRegistrationManagePageProps = {
   registration: TeamRegistrationManageDetail;
@@ -119,6 +120,55 @@ export function PublicTeamRegistrationManagePage({
             L&apos;organizzazione non ha ancora completato la revisione di questa iscrizione.
           </p>
         )}
+      </section>
+
+      <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Moduli da scaricare
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            Documenti per completare l&apos;iscrizione
+          </h2>
+          <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-600">
+            <p>
+              Scarica i moduli qui sotto e compila solo quelli richiesti per la tua squadra.
+            </p>
+            <p>
+              I partecipanti maggiorenni devono usare il modulo per maggiorenni. I partecipanti
+              minorenni devono usare il modulo per minorenni con firma del genitore o del tutore.
+            </p>
+            <p>
+              L&apos;informativa privacy / GDPR riguarda il trattamento dei dati personali necessari
+              alla partecipazione al torneo.
+            </p>
+            <p>
+              Il caricamento digitale dei documenti arriver&agrave; in una fase successiva. Per ora
+              questa pagina resta solo consultabile.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3">
+          {TOURNAMENT_DOCUMENTS.map((document) => (
+            <div
+              key={document.id}
+              className="flex flex-col gap-3 rounded-2xl bg-slate-50 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-950">{document.title}</p>
+                <p className="mt-1 text-sm leading-6 text-slate-600">{document.description}</p>
+              </div>
+              <a
+                href={document.href}
+                download={document.downloadName}
+                className="inline-flex w-full shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-slate-400 hover:text-slate-950 sm:w-fit"
+              >
+                Scarica PDF
+              </a>
+            </div>
+          ))}
+        </div>
       </section>
 
       <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
