@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import type { TeamRegistrationManageLinkReveal } from "@/features/team-registrations/types/team-registration.types";
 
 const CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME = "team_registration_manage_link";
+const DASHBOARD_CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME =
+  "dashboard_team_registration_manage_link";
 const CAPTAIN_MANAGE_LINK_FLASH_MAX_AGE_SECONDS = 60 * 10;
 
 function getCaptainManageLinkFlashCookieOptions(path: string) {
@@ -22,6 +24,10 @@ function getCaptainManageLinkFlashCookiePath(tournamentSlug: string) {
   return `/tournaments/${tournamentSlug}/register-team`;
 }
 
+function getDashboardCaptainManageLinkFlashCookiePath(tournamentSlug: string) {
+  return `/dashboard/tournaments/${tournamentSlug}`;
+}
+
 export function generateCaptainManageToken() {
   return randomBytes(32).toString("hex");
 }
@@ -34,21 +40,22 @@ export function buildCaptainManagePath(tournamentSlug: string, token: string) {
   return `/tournaments/${tournamentSlug}/register-team/manage/${token}`;
 }
 
-export async function storeCaptainManageLinkFlash(tournamentSlug: string, token: string) {
+async function storeCaptainManageLinkFlashCookie(cookieName: string, path: string, token: string) {
   const cookieStore = await cookies();
 
   cookieStore.set(
-    CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME,
+    cookieName,
     token,
-    getCaptainManageLinkFlashCookieOptions(getCaptainManageLinkFlashCookiePath(tournamentSlug)),
+    getCaptainManageLinkFlashCookieOptions(path),
   );
 }
 
-export async function readCaptainManageLinkFlash(
+async function readCaptainManageLinkFlashCookie(
+  cookieName: string,
   tournamentSlug: string,
 ): Promise<TeamRegistrationManageLinkReveal | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME)?.value;
+  const token = cookieStore.get(cookieName)?.value;
 
   if (!token || !/^[a-f0-9]{64}$/.test(token)) {
     return null;
@@ -60,12 +67,56 @@ export async function readCaptainManageLinkFlash(
   };
 }
 
-export async function clearCaptainManageLinkFlash(tournamentSlug: string) {
+async function clearCaptainManageLinkFlashCookie(cookieName: string, path: string) {
   const cookieStore = await cookies();
-  const path = getCaptainManageLinkFlashCookiePath(tournamentSlug);
 
-  cookieStore.set(CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME, "", {
+  cookieStore.set(cookieName, "", {
     ...getCaptainManageLinkFlashCookieOptions(path),
     maxAge: 0,
   });
+}
+
+export async function storeCaptainManageLinkFlash(tournamentSlug: string, token: string) {
+  return storeCaptainManageLinkFlashCookie(
+    CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME,
+    getCaptainManageLinkFlashCookiePath(tournamentSlug),
+    token,
+  );
+}
+
+export async function readCaptainManageLinkFlash(
+  tournamentSlug: string,
+): Promise<TeamRegistrationManageLinkReveal | null> {
+  return readCaptainManageLinkFlashCookie(CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME, tournamentSlug);
+}
+
+export async function clearCaptainManageLinkFlash(tournamentSlug: string) {
+  return clearCaptainManageLinkFlashCookie(
+    CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME,
+    getCaptainManageLinkFlashCookiePath(tournamentSlug),
+  );
+}
+
+export async function storeDashboardCaptainManageLinkFlash(tournamentSlug: string, token: string) {
+  return storeCaptainManageLinkFlashCookie(
+    DASHBOARD_CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME,
+    getDashboardCaptainManageLinkFlashCookiePath(tournamentSlug),
+    token,
+  );
+}
+
+export async function readDashboardCaptainManageLinkFlash(
+  tournamentSlug: string,
+): Promise<TeamRegistrationManageLinkReveal | null> {
+  return readCaptainManageLinkFlashCookie(
+    DASHBOARD_CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME,
+    tournamentSlug,
+  );
+}
+
+export async function clearDashboardCaptainManageLinkFlash(tournamentSlug: string) {
+  return clearCaptainManageLinkFlashCookie(
+    DASHBOARD_CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME,
+    getDashboardCaptainManageLinkFlashCookiePath(tournamentSlug),
+  );
 }

@@ -1,14 +1,18 @@
 import {
   approveTeamRegistrationAction,
   rejectTeamRegistrationAction,
+  resetCaptainManageLinkAction,
 } from "@/features/team-registrations/server/team-registration-actions";
+import { DashboardCaptainManageLinkReveal } from "@/features/team-registrations/components/dashboard-captain-manage-link-reveal";
 import type {
   TeamRegistrationDetail,
+  TeamRegistrationManageLinkReveal,
   TeamRegistrationStatusValue,
 } from "@/features/team-registrations/types/team-registration.types";
 import { formatDateTimeLabel } from "@/lib/format-date";
 
 type DashboardTeamRegistrationsPanelProps = {
+  manageLinkReveal: TeamRegistrationManageLinkReveal | null;
   registrations: TeamRegistrationDetail[];
   tournamentSlug: string;
 };
@@ -32,19 +36,34 @@ const statusBadgeClassNames: Record<TeamRegistrationStatusValue, string> = {
 };
 
 export function DashboardTeamRegistrationsPanel({
+  manageLinkReveal,
   registrations,
   tournamentSlug,
 }: DashboardTeamRegistrationsPanelProps) {
   if (registrations.length === 0) {
     return (
-      <p className="mt-5 text-sm text-slate-600">
-        No captain registrations have been submitted for this tournament yet.
-      </p>
+      <div className="mt-5 grid gap-4">
+        {manageLinkReveal ? (
+          <DashboardCaptainManageLinkReveal
+            tournamentSlug={tournamentSlug}
+            reveal={manageLinkReveal}
+          />
+        ) : null}
+        <p className="text-sm text-slate-600">
+          No captain registrations have been submitted for this tournament yet.
+        </p>
+      </div>
     );
   }
 
   return (
     <div className="mt-5 grid gap-6">
+      {manageLinkReveal ? (
+        <DashboardCaptainManageLinkReveal
+          tournamentSlug={tournamentSlug}
+          reveal={manageLinkReveal}
+        />
+      ) : null}
       {registrationStatuses.map((status) => {
         const statusRegistrations = registrations.filter((registration) => registration.status === status);
 
@@ -161,30 +180,57 @@ export function DashboardTeamRegistrationsPanel({
                         ))}
                       </div>
 
-                      {registration.status === "PENDING" ? (
-                        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                          <form action={approveTeamRegistrationAction}>
+                      <div className="mt-5 grid gap-4">
+                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
+                          <p className="text-xs font-medium uppercase tracking-[0.16em] text-amber-800">
+                            Link capitano
+                          </p>
+                          <p className="mt-2 text-sm leading-6 text-amber-950">
+                            Se il capitano ha perso il link privato, puoi generarne uno nuovo.
+                          </p>
+                          <p className="mt-2 text-sm font-medium text-amber-950">
+                            Il vecchio link non sar&agrave; pi&ugrave; valido.
+                          </p>
+                          <form
+                            action={resetCaptainManageLinkAction}
+                            className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center"
+                          >
                             <input type="hidden" name="registrationId" value={registration.id} />
                             <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
                             <button
                               type="submit"
-                              className="w-full rounded-full bg-emerald-600 px-5 py-3 text-sm font-medium text-white sm:w-fit"
+                              className="w-full rounded-full border border-amber-300 bg-white px-5 py-3 text-sm font-medium text-amber-900 sm:w-fit"
                             >
-                              Approve registration
-                            </button>
-                          </form>
-                          <form action={rejectTeamRegistrationAction}>
-                            <input type="hidden" name="registrationId" value={registration.id} />
-                            <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
-                            <button
-                              type="submit"
-                              className="w-full rounded-full border border-rose-300 bg-white px-5 py-3 text-sm font-medium text-rose-700 sm:w-fit"
-                            >
-                              Reject registration
+                              Rigenera link capitano
                             </button>
                           </form>
                         </div>
-                      ) : null}
+
+                        {registration.status === "PENDING" ? (
+                          <div className="flex flex-col gap-3 sm:flex-row">
+                            <form action={approveTeamRegistrationAction}>
+                              <input type="hidden" name="registrationId" value={registration.id} />
+                              <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
+                              <button
+                                type="submit"
+                                className="w-full rounded-full bg-emerald-600 px-5 py-3 text-sm font-medium text-white sm:w-fit"
+                              >
+                                Approve registration
+                              </button>
+                            </form>
+                            <form action={rejectTeamRegistrationAction}>
+                              <input type="hidden" name="registrationId" value={registration.id} />
+                              <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
+                              <button
+                                type="submit"
+                                className="w-full rounded-full border border-rose-300 bg-white px-5 py-3 text-sm font-medium text-rose-700 sm:w-fit"
+                              >
+                                Reject registration
+                              </button>
+                            </form>
+                          </div>
+                        ) : null}
+                      </div>
                     </article>
                   );
                 })}

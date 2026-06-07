@@ -14,6 +14,7 @@ import { listTournamentMatches } from "@/features/matches/server/list-tournament
 import { createTeamPlayerAction } from "@/features/players/server/player-actions";
 import { listTeamPlayers } from "@/features/players/server/list-team-players";
 import { DashboardTeamRegistrationsPanel } from "@/features/team-registrations/components/dashboard-team-registrations-panel";
+import { readDashboardCaptainManageLinkFlash } from "@/features/team-registrations/server/captain-manage-link";
 import { listTournamentTeamRegistrations } from "@/features/team-registrations/server/list-tournament-team-registrations";
 import { listOrganizationTeams } from "@/features/teams/server/list-organization-teams";
 import {
@@ -52,7 +53,7 @@ export async function DashboardTournamentPage({
     notFound();
   }
 
-  const [tournamentTeams, organizationTeams, matches, registrations, groupsSnapshot] =
+  const [tournamentTeams, organizationTeams, matches, registrations, groupsSnapshot, manageLinkReveal] =
     await Promise.all([
       listTournamentTeams(tournament.id),
       listOrganizationTeams(tournament.organizationId),
@@ -61,6 +62,7 @@ export async function DashboardTournamentPage({
       tournament.format === "GROUPS_PLUS_KNOCKOUT"
         ? listTournamentGroupsWithTeams(tournament.id)
         : Promise.resolve(null),
+      readDashboardCaptainManageLinkFlash(tournament.slug),
     ]);
 
   const teamIds = new Set(tournamentTeams.map((team) => team.id));
@@ -263,6 +265,7 @@ export async function DashboardTournamentPage({
               <span className="text-sm text-slate-500">{registrations.length} entries</span>
             </div>
             <DashboardTeamRegistrationsPanel
+              manageLinkReveal={manageLinkReveal}
               registrations={registrations}
               tournamentSlug={tournament.slug}
             />

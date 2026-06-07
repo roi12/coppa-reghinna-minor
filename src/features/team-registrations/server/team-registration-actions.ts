@@ -9,6 +9,7 @@ import { requireOwnerOrAdmin } from "@/features/auth/server/session";
 import {
   generateCaptainManageToken,
   hashCaptainManageToken,
+  storeDashboardCaptainManageLinkFlash,
   storeCaptainManageLinkFlash,
 } from "@/features/team-registrations/server/captain-manage-link";
 import { reviewTeamRegistrationSchema } from "@/features/team-registrations/schemas/review-team-registration.schema";
@@ -27,6 +28,10 @@ function redirectWithMessage(path: string, type: "success" | "error", message: s
 
 function getRegistrationPath(tournamentSlug: string) {
   return `/tournaments/${tournamentSlug}/register-team`;
+}
+
+function getDashboardTournamentPath(tournamentSlug: string) {
+  return `/dashboard/tournaments/${tournamentSlug}`;
 }
 
 function readRequiredFormValue(formData: FormData, key: string) {
@@ -217,6 +222,56 @@ export async function submitTeamRegistrationAction(formData: FormData) {
   );
 }
 
+export async function resetCaptainManageLinkAction(formData: FormData) {
+  await requireOwnerOrAdmin();
+
+  const parsed = reviewTeamRegistrationSchema.safeParse({
+    registrationId: formData.get("registrationId"),
+    tournamentSlug: formData.get("tournamentSlug"),
+  });
+
+  if (!parsed.success) {
+    return redirectWithMessage("/dashboard", "error", "Scegli un'iscrizione valida.");
+  }
+
+  const dashboardPath = getDashboardTournamentPath(parsed.data.tournamentSlug);
+  const registration = await prisma.teamRegistration.findUnique({
+    where: { id: parsed.data.registrationId },
+    select: {
+      id: true,
+      tournament: {
+        select: {
+          slug: true,
+        },
+      },
+    },
+  });
+
+  if (!registration || registration.tournament.slug !== parsed.data.tournamentSlug) {
+    return redirectWithMessage(dashboardPath, "error", "Iscrizione non trovata.");
+  }
+
+  const captainManageToken = generateCaptainManageToken();
+
+  await prisma.teamRegistration.update({
+    where: { id: registration.id },
+    data: {
+      captainManageTokenHash: hashCaptainManageToken(captainManageToken),
+      captainManageTokenIssuedAt: new Date(),
+      captainManageTokenLastUsedAt: null,
+      captainManageTokenRevokedAt: null,
+    },
+  });
+
+  await storeDashboardCaptainManageLinkFlash(parsed.data.tournamentSlug, captainManageToken);
+
+  return redirectWithMessage(
+    dashboardPath,
+    "success",
+    "Nuovo link capitano generato. Copialo e invialo al capitano.",
+  );
+}
+
 export async function approveTeamRegistrationAction(formData: FormData) {
   const user = await requireOwnerOrAdmin();
 
@@ -229,7 +284,7 @@ export async function approveTeamRegistrationAction(formData: FormData) {
     return redirectWithMessage("/dashboard", "error", "Choose a valid registration to approve.");
   }
 
-  const dashboardPath = `/dashboard/tournaments/${parsed.data.tournamentSlug}`;
+  const dashboardPath = getDashboardTournamentPath(parsed.data.tournamentSlug);
   let approvalErrorMessage: string | null = null;
 
   try {
@@ -370,7 +425,7 @@ export async function rejectTeamRegistrationAction(formData: FormData) {
     return redirectWithMessage("/dashboard", "error", "Choose a valid registration to reject.");
   }
 
-  const dashboardPath = `/dashboard/tournaments/${parsed.data.tournamentSlug}`;
+  const dashboardPath = getDashboardTournamentPath(parsed.data.tournamentSlug);
   let rejectionErrorMessage: string | null = null;
 
   try {
