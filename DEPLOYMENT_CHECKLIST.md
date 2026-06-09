@@ -32,6 +32,12 @@ Required in Vercel:
   PostgreSQL connection string
 - `APP_URL`
   Final public origin
+- `RESEND_API_KEY`
+  Resend API key used server-side for captain emails
+- `EMAIL_FROM`
+  Use `Coppa Reghinna Minor <onboarding@resend.dev>` for the MVP
+- `EMAIL_REPLY_TO`
+  Use `coppareghinnaminor@gmail.com` so replies go to the tournament inbox
 - `PRODUCTION_OWNER_EMAIL`
 - `PRODUCTION_OWNER_PASSWORD`
 - `PRODUCTION_ADMIN_EMAIL`
@@ -47,6 +53,9 @@ Example:
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
 APP_URL="https://your-domain.example"
+RESEND_API_KEY=""
+EMAIL_FROM="Coppa Reghinna Minor <onboarding@resend.dev>"
+EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
 PRODUCTION_OWNER_EMAIL="owner@example.com"
 PRODUCTION_OWNER_PASSWORD="strong-owner-password"
 PRODUCTION_ADMIN_EMAIL="admin@example.com"

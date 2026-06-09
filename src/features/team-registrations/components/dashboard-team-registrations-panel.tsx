@@ -217,7 +217,8 @@ export function DashboardTeamRegistrationsPanel({
                             Link capitano
                           </p>
                           <p className="mt-2 text-sm leading-6 text-amber-950">
-                            Se il capitano ha perso il link privato, puoi generarne uno nuovo.
+                            Usa questa azione solo se il capitano ha perso il link o se devi
+                            inviarne uno nuovo.
                           </p>
                           <p className="mt-2 text-sm font-medium text-amber-950">
                             Il vecchio link non sar&agrave; pi&ugrave; valido.

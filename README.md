@@ -40,7 +40,7 @@ This section describes the app **as it works now** (09-06-2026), including the l
 - Review captain-submitted team registrations grouped by `PENDING`, `APPROVED`, and `REJECTED`.
 - See captain details, team notes, roster size, and per-player document status inside each registration.
 - Approve a pending registration:
-  This creates the real team, attaches it to the tournament, creates the roster players, assigns the next seed, and marks the registration as reviewed.
+  This creates the real team, attaches it to the tournament, creates the roster players, assigns the next seed, rotates the captain private manage link, marks the registration as reviewed, and emails the captain the new link.
 - Reject a pending registration.
 - Regenerate a captain private manage link if the original link is lost.
 - Configure groups for `GROUPS_PLUS_KNOCKOUT` tournaments.
@@ -57,7 +57,8 @@ This section describes the app **as it works now** (09-06-2026), including the l
   minimum `5` players and maximum `11` players.
 - Enter, for each player:
   first name, last name, jersey number, and optional role.
-- Receive a private manage link immediately after registration submission.
+- Receive a confirmation email with a private manage link after registration submission.
+- Still see the private manage link immediately after registration submission in the current success flow.
 - Open the private page to:
   view registration status, roster, timestamps, and review state.
 - Download registration PDFs currently exposed by the app:
@@ -161,12 +162,20 @@ Required variables:
   PostgreSQL connection string for local and production environments.
 - `APP_URL`
   Public base URL used for metadata, sitemap, and robots output.
+- `RESEND_API_KEY`
+  Resend API key used only on the server for captain-facing emails.
+- `EMAIL_FROM`
+  Use `Coppa Reghinna Minor <onboarding@resend.dev>` for the MVP sender.
+- `EMAIL_REPLY_TO`
+  Reply-to inbox for captain replies. Use `coppareghinnaminor@gmail.com`.
 - `SUPABASE_URL`
   Supabase project base URL used for private team document uploads.
 - `SUPABASE_SERVICE_ROLE_KEY`
   Service role key used server-side to upload and delete captain-submitted player documents.
 - `SUPABASE_TEAM_DOCUMENTS_BUCKET`
   Private bucket name used for team registration player documents.
+
+If `RESEND_API_KEY` or `EMAIL_FROM` is missing, registration and approval still work and captain emails are skipped safely.
 
 Production seed variables:
 
@@ -187,6 +196,9 @@ Example local PostgreSQL configuration:
 ```env
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/sports_platform?schema=public"
 APP_URL="http://localhost:3000"
+RESEND_API_KEY=""
+EMAIL_FROM="Coppa Reghinna Minor <onboarding@resend.dev>"
+EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 SUPABASE_TEAM_DOCUMENTS_BUCKET="team-documents"
@@ -197,6 +209,9 @@ Example production PostgreSQL configuration:
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
 APP_URL="https://your-domain.example"
+RESEND_API_KEY=""
+EMAIL_FROM="Coppa Reghinna Minor <onboarding@resend.dev>"
+EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 SUPABASE_TEAM_DOCUMENTS_BUCKET="team-documents"

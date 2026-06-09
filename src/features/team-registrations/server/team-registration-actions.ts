@@ -7,14 +7,20 @@ import { z } from "zod";
 
 import { requireOwnerOrAdmin } from "@/features/auth/server/session";
 import {
+  buildCaptainManageUrl,
   generateCaptainManageToken,
   hashCaptainManageToken,
   storeDashboardCaptainManageLinkFlash,
   storeCaptainManageLinkFlash,
 } from "@/features/team-registrations/server/captain-manage-link";
+import {
+  buildRegistrationApprovedEmail,
+  buildRegistrationReceivedEmail,
+} from "@/features/team-registrations/server/team-registration-emails";
 import { reviewTeamRegistrationSchema } from "@/features/team-registrations/schemas/review-team-registration.schema";
 import { submitTeamRegistrationSchema } from "@/features/team-registrations/schemas/submit-team-registration.schema";
 import { revalidateTournamentPaths } from "@/features/tournaments/server/revalidate-tournament-paths";
+import { sendEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
 
 function redirectWithMessage(path: string, type: "success" | "error", message: string): never {
@@ -131,6 +137,13 @@ async function generateUniqueTeamSlug(
   return `${baseSlug}-${suffix}`;
 }
 
+type TeamRegistrationApprovalEmailPayload = {
+  captainEmail: string;
+  captainFirstName: string;
+  manageLink: string;
+  teamName: string;
+};
+
 export async function submitTeamRegistrationAction(formData: FormData) {
   const tournamentSlug = readRequiredFormValue(formData, "tournamentSlug");
 
@@ -213,6 +226,17 @@ export async function submitTeamRegistrationAction(formData: FormData) {
     },
   });
 
+  const captainManageUrl = buildCaptainManageUrl(tournamentSlug, captainManageToken);
+
+  await sendEmail({
+    to: parsed.data.captainEmail,
+    ...buildRegistrationReceivedEmail({
+      captainFirstName: parsed.data.captainFirstName,
+      teamName: parsed.data.teamName,
+      manageLink: captainManageUrl,
+    }),
+  });
+
   await storeCaptainManageLinkFlash(tournamentSlug, captainManageToken);
 
   return redirectWithMessage(
@@ -286,9 +310,12 @@ export async function approveTeamRegistrationAction(formData: FormData) {
 
   const dashboardPath = getDashboardTournamentPath(parsed.data.tournamentSlug);
   let approvalErrorMessage: string | null = null;
+  const captainManageToken = generateCaptainManageToken();
+  const captainManageTokenIssuedAt = new Date();
+  let approvalEmailPayload: TeamRegistrationApprovalEmailPayload | null = null;
 
   try {
-    await prisma.$transaction(async (transaction) => {
+    approvalEmailPayload = await prisma.$transaction(async (transaction) => {
       const registration = await transaction.teamRegistration.findUnique({
         where: { id: parsed.data.registrationId },
         select: {
@@ -297,6 +324,8 @@ export async function approveTeamRegistrationAction(formData: FormData) {
           teamId: true,
           status: true,
           teamName: true,
+          captainFirstName: true,
+          captainEmail: true,
           tournament: {
             select: {
               id: true,
@@ -393,8 +422,19 @@ export async function approveTeamRegistrationAction(formData: FormData) {
           reviewedAt: new Date(),
           reviewedByUserId: user.id,
           teamId: team.id,
+          captainManageTokenHash: hashCaptainManageToken(captainManageToken),
+          captainManageTokenIssuedAt: captainManageTokenIssuedAt,
+          captainManageTokenLastUsedAt: null,
+          captainManageTokenRevokedAt: null,
         },
       });
+
+      return {
+        captainEmail: registration.captainEmail,
+        captainFirstName: registration.captainFirstName,
+        teamName: registration.teamName,
+        manageLink: buildCaptainManageUrl(parsed.data.tournamentSlug, captainManageToken),
+      };
     });
   } catch (error) {
     if (error instanceof Error) {
@@ -409,6 +449,17 @@ export async function approveTeamRegistrationAction(formData: FormData) {
   }
 
   revalidateTournamentPaths(parsed.data.tournamentSlug);
+
+  if (approvalEmailPayload) {
+    await sendEmail({
+      to: approvalEmailPayload.captainEmail,
+      ...buildRegistrationApprovedEmail({
+        captainFirstName: approvalEmailPayload.captainFirstName,
+        teamName: approvalEmailPayload.teamName,
+        manageLink: approvalEmailPayload.manageLink,
+      }),
+    });
+  }
 
   return redirectWithMessage(dashboardPath, "success", "Registration approved and team created.");
 }

@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { cookies } from "next/headers";
 
 import type { TeamRegistrationManageLinkReveal } from "@/features/team-registrations/types/team-registration.types";
+import { getSiteUrl } from "@/lib/site-url";
 
 const CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME = "team_registration_manage_link";
 const DASHBOARD_CAPTAIN_MANAGE_LINK_FLASH_COOKIE_NAME =
@@ -38,6 +39,10 @@ export function hashCaptainManageToken(token: string) {
 
 export function buildCaptainManagePath(tournamentSlug: string, token: string) {
   return `/tournaments/${tournamentSlug}/register-team/manage/${token}`;
+}
+
+export function buildCaptainManageUrl(tournamentSlug: string, token: string) {
+  return new URL(buildCaptainManagePath(tournamentSlug, token), getSiteUrl()).toString();
 }
 
 async function storeCaptainManageLinkFlashCookie(cookieName: string, path: string, token: string) {
