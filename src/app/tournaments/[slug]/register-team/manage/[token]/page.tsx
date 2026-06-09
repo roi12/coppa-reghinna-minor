@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 
 import { PublicTeamRegistrationManagePage } from "@/features/team-registrations/components/public-team-registration-manage-page";
 import { getTeamRegistrationByManageToken } from "@/features/team-registrations/server/get-team-registration-by-manage-token";
+import { readDashboardFeedback } from "@/lib/dashboard-feedback";
 
 export const dynamic = "force-dynamic";
 
@@ -17,8 +18,10 @@ export const metadata: Metadata = {
 
 export default async function TournamentRegistrationManagePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string; token: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   noStore();
 
@@ -34,5 +37,13 @@ export default async function TournamentRegistrationManagePage({
     notFound();
   }
 
-  return <PublicTeamRegistrationManagePage registration={registration} />;
+  const feedback = await readDashboardFeedback(searchParams);
+
+  return (
+    <PublicTeamRegistrationManagePage
+      feedback={feedback}
+      registration={registration}
+      token={token}
+    />
+  );
 }

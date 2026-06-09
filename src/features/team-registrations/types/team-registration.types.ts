@@ -1,6 +1,13 @@
 export const TEAM_REGISTRATION_STATUS_VALUES = ["PENDING", "APPROVED", "REJECTED"] as const;
+export const TEAM_REGISTRATION_PLAYER_DOCUMENT_STATUS_VALUES = [
+  "MISSING",
+  "UPLOADED",
+  "PAPER_DELIVERY",
+] as const;
 
 export type TeamRegistrationStatusValue = (typeof TEAM_REGISTRATION_STATUS_VALUES)[number];
+export type TeamRegistrationPlayerDocumentStatusValue =
+  (typeof TEAM_REGISTRATION_PLAYER_DOCUMENT_STATUS_VALUES)[number];
 
 export type TeamRegistrationPlayerInput = {
   firstName: string;
@@ -45,6 +52,13 @@ export type TeamRegistrationRosterPlayer = {
   jerseyNumber: string;
   role: string | null;
   sortOrder: number;
+  documentStatus: TeamRegistrationPlayerDocumentStatusValue;
+  documentFilePath: string | null;
+  documentFileName: string | null;
+  documentMimeType: string | null;
+  documentSizeBytes: number | null;
+  documentUploadedAt: Date | null;
+  documentMarkedPaperAt: Date | null;
   createdAt: Date;
 };
 

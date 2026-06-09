@@ -29,6 +29,12 @@ enum TeamRegistrationStatus {
   REJECTED
 }
 
+enum TeamRegistrationPlayerDocumentStatus {
+  MISSING
+  UPLOADED
+  PAPER_DELIVERY
+}
+
 enum UserRole {
   OWNER
   ADMIN
@@ -176,15 +182,22 @@ model TeamRegistration {
 }
 
 model TeamRegistrationPlayer {
-  id             String           @id @default(cuid())
-  registrationId String
-  firstName      String
-  lastName       String
-  jerseyNumber   String
-  role           String?
-  sortOrder      Int
-  createdAt      DateTime         @default(now())
-  registration   TeamRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  id                    String                               @id @default(cuid())
+  registrationId        String
+  firstName             String
+  lastName              String
+  jerseyNumber          String
+  role                  String?
+  sortOrder             Int
+  documentStatus        TeamRegistrationPlayerDocumentStatus @default(MISSING)
+  documentFilePath      String?
+  documentFileName      String?
+  documentMimeType      String?
+  documentSizeBytes     Int?
+  documentUploadedAt    DateTime?
+  documentMarkedPaperAt DateTime?
+  createdAt             DateTime                             @default(now())
+  registration          TeamRegistration                     @relation(fields: [registrationId], references: [id], onDelete: Cascade)
 
   @@index([registrationId, sortOrder])
   @@unique([registrationId, jerseyNumber])

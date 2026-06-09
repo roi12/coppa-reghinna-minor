@@ -1,9 +1,25 @@
+import { FeedbackBanner } from "@/components/ui/feedback-banner";
+import {
+  markTeamRegistrationPlayerPaperDeliveryAction,
+  uploadTeamRegistrationPlayerDocumentAction,
+} from "@/features/team-registrations/server/team-registration-document-actions";
 import type { TeamRegistrationManageDetail } from "@/features/team-registrations/types/team-registration.types";
+import {
+  TEAM_REGISTRATION_PLAYER_DOCUMENT_ACCEPT,
+  TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL,
+  formatTeamRegistrationDocumentSize,
+  summarizeTeamRegistrationPlayerDocuments,
+  teamRegistrationPlayerDocumentStatusBadgeClassNames,
+  teamRegistrationPlayerDocumentStatusLabels,
+} from "@/features/team-registrations/utils/team-registration-player-documents";
 import { formatDateTimeLabel } from "@/lib/format-date";
 import { TOURNAMENT_DOCUMENTS } from "@/lib/tournament-documents";
+import type { DashboardFeedback } from "@/lib/dashboard-feedback";
 
 type PublicTeamRegistrationManagePageProps = {
+  feedback: DashboardFeedback | null;
   registration: TeamRegistrationManageDetail;
+  token: string;
 };
 
 const statusLabels: Record<TeamRegistrationManageDetail["status"], string> = {
@@ -19,12 +35,24 @@ const statusBadgeClassNames: Record<TeamRegistrationManageDetail["status"], stri
 };
 
 export function PublicTeamRegistrationManagePage({
+  feedback,
   registration,
+  token,
 }: PublicTeamRegistrationManagePageProps) {
   const captainFullName = `${registration.captainFirstName} ${registration.captainLastName}`.trim();
+  const documentSummary = summarizeTeamRegistrationPlayerDocuments(registration.players);
+  const documentsEditable = registration.status !== "REJECTED";
+  const documentSectionTitle =
+    registration.status === "APPROVED"
+      ? "Rosa approvata, documenti ancora caricabili"
+      : registration.status === "REJECTED"
+        ? "Documenti non modificabili"
+        : "Caricamento documenti giocatori";
 
   return (
     <div className="grid gap-6">
+      <FeedbackBanner feedback={feedback} />
+
       <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -37,7 +65,8 @@ export function PublicTeamRegistrationManagePage({
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Questa pagina mostra lo stato dell&apos;iscrizione per il torneo{" "}
               <span className="font-medium text-slate-900">{registration.tournamentName}</span>.
-              Le modifiche non sono ancora disponibili in questa fase.
+              La rosa resta in sola lettura, ma i documenti dei giocatori possono essere caricati
+              dal link privato finch&eacute; l&apos;iscrizione non viene rifiutata.
             </p>
           </div>
           <span
@@ -47,7 +76,7 @@ export function PublicTeamRegistrationManagePage({
           </span>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Capitano</p>
             <p className="mt-1 text-sm font-medium text-slate-950">{captainFullName}</p>
@@ -66,6 +95,13 @@ export function PublicTeamRegistrationManagePage({
             <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Rosa</p>
             <p className="mt-1 text-sm font-medium text-slate-950">
               {registration.players.length} giocatori
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Documenti</p>
+            <p className="mt-1 text-sm font-medium text-slate-950">
+              {documentSummary.uploaded} caricati · {documentSummary.paperDelivery} cartacei ·{" "}
+              {documentSummary.missing} mancanti
             </p>
           </div>
         </div>
@@ -143,8 +179,8 @@ export function PublicTeamRegistrationManagePage({
               alla partecipazione al torneo.
             </p>
             <p>
-              Il caricamento digitale dei documenti arriver&agrave; in una fase successiva. Per ora
-              questa pagina resta solo consultabile.
+              Dopo il download puoi caricare il documento compilato nella sezione giocatori qui
+              sotto.
             </p>
           </div>
         </div>
@@ -174,36 +210,133 @@ export function PublicTeamRegistrationManagePage({
       <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Rosa inviata
+            Documenti giocatori
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-            Riepilogo giocatori
+            {documentSectionTitle}
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Questa vista &egrave; solo informativa. Le modifiche arriveranno in una fase
-            successiva.
-          </p>
+          <div className="mt-2 grid gap-2 text-sm leading-6 text-slate-600">
+            <p>Carica il documento compilato per ogni giocatore.</p>
+            <p>
+              Sono accettati PDF, JPG e PNG fino a {TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL}.
+            </p>
+            <p>
+              Se il modulo verr&agrave; consegnato a mano, seleziona Consegna cartacea.
+            </p>
+            <p>Questo link &egrave; riservato alla squadra. Non condividerlo pubblicamente.</p>
+            {registration.status === "APPROVED" ? (
+              <p className="font-medium text-emerald-700">
+                L&apos;iscrizione &egrave; approvata, ma puoi ancora completare i documenti dei
+                giocatori.
+              </p>
+            ) : null}
+            {registration.status === "REJECTED" ? (
+              <p className="font-medium text-rose-700">
+                L&apos;iscrizione &egrave; stata rifiutata. I documenti restano visibili ma non sono
+                pi&ugrave; modificabili.
+              </p>
+            ) : null}
+          </div>
         </div>
 
         <div className="mt-6 grid gap-3">
           {registration.players.map((player) => (
-            <div
+            <article
               key={player.id}
-              className="grid gap-2 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700 sm:grid-cols-[minmax(0,1.5fr)_auto_auto]"
+              className="grid gap-4 rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-700"
             >
-              <div className="min-w-0">
-                <p className="font-medium text-slate-950">
-                  {player.firstName} {player.lastName}
-                </p>
-                <p className="text-slate-500">{player.role ?? "Ruolo non indicato"}</p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-950">
+                    {player.firstName} {player.lastName}
+                  </p>
+                  <p className="text-slate-500">{player.role ?? "Ruolo non indicato"}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-slate-300 px-3 py-1 font-semibold text-slate-700">
+                    #{player.jerseyNumber}
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${teamRegistrationPlayerDocumentStatusBadgeClassNames[player.documentStatus]}`}
+                  >
+                    {teamRegistrationPlayerDocumentStatusLabels[player.documentStatus]}
+                  </span>
+                </div>
               </div>
-              <span className="rounded-full border border-slate-300 px-3 py-1 font-semibold text-slate-700">
-                #{player.jerseyNumber}
-              </span>
-              <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                Giocatore {player.sortOrder + 1}
-              </span>
-            </div>
+
+              <div className="grid gap-2 text-sm text-slate-600">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                  Giocatore {player.sortOrder + 1}
+                </p>
+                {player.documentStatus === "UPLOADED" ? (
+                  <p>
+                    File caricato:{" "}
+                    <span className="font-medium text-slate-900">
+                      {player.documentFileName ?? "Documento"}
+                    </span>
+                    {player.documentUploadedAt
+                      ? ` · ${formatDateTimeLabel(player.documentUploadedAt)}`
+                      : ""}
+                    {formatTeamRegistrationDocumentSize(player.documentSizeBytes)
+                      ? ` · ${formatTeamRegistrationDocumentSize(player.documentSizeBytes)}`
+                      : ""}
+                  </p>
+                ) : player.documentStatus === "PAPER_DELIVERY" ? (
+                  <p>
+                    Consegna cartacea registrata
+                    {player.documentMarkedPaperAt
+                      ? ` il ${formatDateTimeLabel(player.documentMarkedPaperAt)}`
+                      : ""}.
+                  </p>
+                ) : (
+                  <p>Nessun documento registrato per questo giocatore.</p>
+                )}
+              </div>
+
+              {documentsEditable ? (
+                <div className="grid gap-3 border-t border-slate-200 pt-4">
+                  <form action={uploadTeamRegistrationPlayerDocumentAction} className="grid gap-3">
+                    <input type="hidden" name="tournamentSlug" value={registration.tournamentSlug} />
+                    <input type="hidden" name="token" value={token} />
+                    <input type="hidden" name="playerId" value={player.id} />
+                    <label className="grid gap-2 text-sm font-medium text-slate-700">
+                      {player.documentStatus === "UPLOADED"
+                        ? "Sostituisci documento"
+                        : "Carica documento"}
+                      <input
+                        type="file"
+                        name="documentFile"
+                        accept={TEAM_REGISTRATION_PLAYER_DOCUMENT_ACCEPT}
+                        className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
+                      />
+                    </label>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <button
+                        type="submit"
+                        className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white sm:w-fit"
+                      >
+                        {player.documentStatus === "UPLOADED" ? "Aggiorna file" : "Carica file"}
+                      </button>
+                    </div>
+                  </form>
+
+                  <form
+                    action={markTeamRegistrationPlayerPaperDeliveryAction}
+                    className="flex flex-col gap-3 sm:flex-row sm:items-center"
+                  >
+                    <input type="hidden" name="tournamentSlug" value={registration.tournamentSlug} />
+                    <input type="hidden" name="token" value={token} />
+                    <input type="hidden" name="playerId" value={player.id} />
+                    <button
+                      type="submit"
+                      className="w-full rounded-full border border-amber-300 bg-white px-5 py-3 text-sm font-medium text-amber-900 sm:w-fit"
+                    >
+                      Segna consegna cartacea
+                    </button>
+                  </form>
+                </div>
+              ) : null}
+            </article>
           ))}
         </div>
       </section>

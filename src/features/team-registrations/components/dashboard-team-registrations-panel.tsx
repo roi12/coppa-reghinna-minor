@@ -9,6 +9,11 @@ import type {
   TeamRegistrationManageLinkReveal,
   TeamRegistrationStatusValue,
 } from "@/features/team-registrations/types/team-registration.types";
+import {
+  summarizeTeamRegistrationPlayerDocuments,
+  teamRegistrationPlayerDocumentStatusBadgeClassNames,
+  teamRegistrationPlayerDocumentStatusLabels,
+} from "@/features/team-registrations/utils/team-registration-player-documents";
 import { formatDateTimeLabel } from "@/lib/format-date";
 
 type DashboardTeamRegistrationsPanelProps = {
@@ -94,6 +99,9 @@ export function DashboardTeamRegistrationsPanel({
                 {statusRegistrations.map((registration) => {
                   const captainFullName =
                     `${registration.captainFirstName} ${registration.captainLastName}`.trim();
+                  const documentSummary = summarizeTeamRegistrationPlayerDocuments(
+                    registration.players,
+                  );
 
                   return (
                     <article
@@ -142,6 +150,15 @@ export function DashboardTeamRegistrationsPanel({
                             {registration.players.length} players
                           </p>
                         </div>
+                        <div className="rounded-2xl bg-white px-4 py-3 md:col-span-2 xl:col-span-4">
+                          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+                            Documenti
+                          </p>
+                          <p className="mt-1 text-sm font-medium text-slate-950">
+                            {documentSummary.uploaded} caricati · {documentSummary.paperDelivery}{" "}
+                            cartacei · {documentSummary.missing} mancanti
+                          </p>
+                        </div>
                       </div>
 
                       {registration.notes ? (
@@ -169,13 +186,27 @@ export function DashboardTeamRegistrationsPanel({
                                 {player.firstName} {player.lastName}
                               </p>
                               <p className="text-slate-500">{player.role ?? "Role not provided"}</p>
+                              <p className="mt-1 text-xs text-slate-500">
+                                {player.documentStatus === "UPLOADED"
+                                  ? `File: ${player.documentFileName ?? "Documento caricato"}`
+                                  : player.documentStatus === "PAPER_DELIVERY"
+                                    ? "Documento previsto in consegna cartacea"
+                                    : "Documento ancora mancante"}
+                              </p>
                             </div>
                             <span className="rounded-full border border-slate-300 px-3 py-1 font-semibold text-slate-700">
                               #{player.jerseyNumber}
                             </span>
-                            <span className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                              Player {player.sortOrder + 1}
-                            </span>
+                            <div className="justify-self-start sm:justify-self-end">
+                              <span
+                                className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${teamRegistrationPlayerDocumentStatusBadgeClassNames[player.documentStatus]}`}
+                              >
+                                {teamRegistrationPlayerDocumentStatusLabels[player.documentStatus]}
+                              </span>
+                              <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
+                                Player {player.sortOrder + 1}
+                              </p>
+                            </div>
                           </div>
                         ))}
                       </div>
