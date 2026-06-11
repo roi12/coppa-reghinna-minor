@@ -79,6 +79,7 @@ export async function getTeamRegistrationByManageToken(
   });
 
   return {
+    approvedTeamRemovalState: "NOT_APPLICABLE",
     id: registration.id,
     tournamentId: registration.tournamentId,
     teamId: registration.teamId,

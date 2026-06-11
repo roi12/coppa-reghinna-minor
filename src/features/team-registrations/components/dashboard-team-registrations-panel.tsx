@@ -1,5 +1,6 @@
 import {
   approveTeamRegistrationAction,
+  deleteOrRemoveTeamRegistrationAction,
   rejectTeamRegistrationAction,
   resetCaptainManageLinkAction,
 } from "@/features/team-registrations/server/team-registration-actions";
@@ -51,6 +52,11 @@ const emptyStateLabels: Record<TeamRegistrationStatusValue, string> = {
   APPROVED: "Nessuna iscrizione approvata.",
   REJECTED: "Nessuna iscrizione rifiutata.",
 };
+
+const approvedTeamRemovalBlockedMessage =
+  "Questa squadra ha partite collegate. Rimuovi o rigenera prima il calendario.";
+const brokenApprovedRegistrationMessage =
+  "Registrazione approvata non collegata correttamente a una squadra. Controlla i dati prima di eliminarla.";
 
 export function DashboardTeamRegistrationsPanel({
   manageLinkReveal,
@@ -112,6 +118,25 @@ export function DashboardTeamRegistrationsPanel({
                   const documentSummary = summarizeTeamRegistrationPlayerDocuments(
                     registration.players,
                   );
+                  const destructiveButtonLabel =
+                    registration.status === "APPROVED"
+                      ? "Rimuovi squadra"
+                      : "Elimina registrazione";
+                  const destructiveWarning =
+                    registration.status === "APPROVED"
+                      ? "Rimuove la squadra approvata dal torneo, i giocatori collegati e la registrazione. L'azione non può essere annullata."
+                      : "Elimina la richiesta di iscrizione e gli eventuali documenti caricati. L'azione non può essere annullata.";
+                  const showDestructiveButton =
+                    registration.status !== "APPROVED" ||
+                    registration.approvedTeamRemovalState === "REMOVABLE";
+                  const destructiveBlockedMessage =
+                    registration.status !== "APPROVED"
+                      ? null
+                      : registration.approvedTeamRemovalState === "LINKED_MATCHES"
+                        ? approvedTeamRemovalBlockedMessage
+                        : registration.approvedTeamRemovalState === "MISSING_TEAM_LINK"
+                          ? brokenApprovedRegistrationMessage
+                          : null;
 
                   return (
                     <article
@@ -222,6 +247,23 @@ export function DashboardTeamRegistrationsPanel({
                               Rigenera link capitano
                             </button>
                           </form>
+
+                          {showDestructiveButton ? (
+                            <form action={deleteOrRemoveTeamRegistrationAction} className="sm:flex-none">
+                              <input type="hidden" name="registrationId" value={registration.id} />
+                              <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
+                              <button
+                                type="submit"
+                                className="w-full rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-900 sm:w-fit"
+                              >
+                                {destructiveButtonLabel}
+                              </button>
+                            </form>
+                          ) : destructiveBlockedMessage ? (
+                            <div className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-600">
+                              {destructiveBlockedMessage}
+                            </div>
+                          ) : null}
                         </div>
 
                         <details className="group rounded-2xl border border-slate-200 bg-white">
@@ -381,6 +423,36 @@ export function DashboardTeamRegistrationsPanel({
                                   Il vecchio link non sar&agrave; pi&ugrave; valido.
                                 </p>
                               </div>
+                            </section>
+
+                            <section className="grid gap-3">
+                              <h6 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                Rimozione
+                              </h6>
+                              {showDestructiveButton ? (
+                                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
+                                  <p className="text-sm leading-6 text-rose-950">
+                                    {destructiveWarning}
+                                  </p>
+                                  <form
+                                    action={deleteOrRemoveTeamRegistrationAction}
+                                    className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center"
+                                  >
+                                    <input type="hidden" name="registrationId" value={registration.id} />
+                                    <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
+                                    <button
+                                      type="submit"
+                                      className="w-full rounded-full bg-rose-600 px-5 py-3 text-sm font-medium text-white sm:w-fit"
+                                    >
+                                      {destructiveButtonLabel}
+                                    </button>
+                                  </form>
+                                </div>
+                              ) : destructiveBlockedMessage ? (
+                                <div className="rounded-2xl border border-slate-300 bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700">
+                                  {destructiveBlockedMessage}
+                                </div>
+                              ) : null}
                             </section>
                           </div>
                         </details>

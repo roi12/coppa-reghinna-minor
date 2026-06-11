@@ -28,6 +28,25 @@ export const listTournamentTeamRegistrations = cache(
             name: true,
           },
         },
+        team: {
+          select: {
+            tournaments: {
+              where: { tournamentId },
+              select: { id: true },
+              take: 1,
+            },
+            homeMatches: {
+              where: { tournamentId },
+              select: { id: true },
+              take: 1,
+            },
+            awayMatches: {
+              where: { tournamentId },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        },
         players: {
           orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
           select: {
@@ -51,6 +70,16 @@ export const listTournamentTeamRegistrations = cache(
     });
 
     return registrations.map((registration) => ({
+      approvedTeamRemovalState:
+        registration.status !== "APPROVED"
+          ? "NOT_APPLICABLE"
+          : !registration.teamId ||
+              !registration.team ||
+              registration.team.tournaments.length === 0
+            ? "MISSING_TEAM_LINK"
+            : registration.team.homeMatches.length > 0 || registration.team.awayMatches.length > 0
+              ? "LINKED_MATCHES"
+              : "REMOVABLE",
       id: registration.id,
       tournamentId: registration.tournamentId,
       teamId: registration.teamId,

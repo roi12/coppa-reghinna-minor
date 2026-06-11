@@ -63,6 +63,11 @@ export type TeamRegistrationRosterPlayer = {
 };
 
 export type TeamRegistrationDetail = TeamRegistrationSummary & {
+  approvedTeamRemovalState:
+    | "NOT_APPLICABLE"
+    | "REMOVABLE"
+    | "LINKED_MATCHES"
+    | "MISSING_TEAM_LINK";
   reviewedByName: string | null;
   players: TeamRegistrationRosterPlayer[];
 };

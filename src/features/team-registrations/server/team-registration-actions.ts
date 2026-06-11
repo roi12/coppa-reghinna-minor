@@ -22,6 +22,10 @@ import { submitTeamRegistrationSchema } from "@/features/team-registrations/sche
 import { revalidateTournamentPaths } from "@/features/tournaments/server/revalidate-tournament-paths";
 import { sendEmail } from "@/lib/email";
 import { prisma } from "@/lib/prisma";
+import {
+  deletePrivateBucketObject,
+  getSupabaseTeamDocumentsBucketName,
+} from "@/lib/supabase-storage";
 
 function redirectWithMessage(path: string, type: "success" | "error", message: string): never {
   const searchParams = new URLSearchParams({
@@ -143,6 +147,32 @@ type TeamRegistrationApprovalEmailPayload = {
   manageLink: string;
   teamName: string;
 };
+
+function logTeamRegistrationStorageCleanupWarning(error: unknown) {
+  console.warn("Team registration document cleanup failed", error);
+}
+
+async function deleteTeamRegistrationDocuments(documentFilePaths: string[]) {
+  if (documentFilePaths.length === 0) {
+    return;
+  }
+
+  try {
+    const bucketName = getSupabaseTeamDocumentsBucketName();
+
+    await Promise.all(
+      documentFilePaths.map(async (documentFilePath) => {
+        try {
+          await deletePrivateBucketObject(bucketName, documentFilePath);
+        } catch (error) {
+          logTeamRegistrationStorageCleanupWarning(error);
+        }
+      }),
+    );
+  } catch (error) {
+    logTeamRegistrationStorageCleanupWarning(error);
+  }
+}
 
 export async function submitTeamRegistrationAction(formData: FormData) {
   const tournamentSlug = readRequiredFormValue(formData, "tournamentSlug");
@@ -528,4 +558,176 @@ export async function rejectTeamRegistrationAction(formData: FormData) {
   revalidateTournamentPaths(parsed.data.tournamentSlug);
 
   return redirectWithMessage(dashboardPath, "success", "Registration rejected.");
+}
+
+export async function deleteOrRemoveTeamRegistrationAction(formData: FormData) {
+  await requireOwnerOrAdmin();
+
+  const parsed = reviewTeamRegistrationSchema.safeParse({
+    registrationId: formData.get("registrationId"),
+    tournamentSlug: formData.get("tournamentSlug"),
+  });
+
+  if (!parsed.success) {
+    return redirectWithMessage("/dashboard", "error", "Impossibile completare l'operazione.");
+  }
+
+  const dashboardPath = getDashboardTournamentPath(parsed.data.tournamentSlug);
+  const blockedMatchesMessage =
+    "Questa squadra ha partite collegate. Rimuovi o rigenera prima il calendario.";
+  const brokenApprovedRegistrationMessage =
+    "Registrazione approvata non collegata correttamente a una squadra. Controlla i dati prima di eliminarla.";
+
+  let successMessage: string | null = null;
+  let documentFilePathsToDelete: string[] = [];
+
+  try {
+    successMessage = await prisma.$transaction(async (transaction) => {
+      const registration = await transaction.teamRegistration.findUnique({
+        where: { id: parsed.data.registrationId },
+        select: {
+          id: true,
+          tournamentId: true,
+          teamId: true,
+          status: true,
+          tournament: {
+            select: {
+              slug: true,
+            },
+          },
+          players: {
+            select: {
+              documentFilePath: true,
+            },
+          },
+        },
+      });
+
+      if (!registration || registration.tournament.slug !== parsed.data.tournamentSlug) {
+        throw new Error("Impossibile completare l'operazione.");
+      }
+
+      documentFilePathsToDelete = registration.players
+        .map((player) => player.documentFilePath)
+        .filter((documentFilePath): documentFilePath is string => Boolean(documentFilePath));
+
+      if (registration.status === "PENDING" || registration.status === "REJECTED") {
+        await transaction.teamRegistration.delete({
+          where: { id: registration.id },
+        });
+
+        return "Registrazione eliminata.";
+      }
+
+      if (!registration.teamId) {
+        throw new Error(brokenApprovedRegistrationMessage);
+      }
+
+      const tournamentTeam = await transaction.tournamentTeam.findUnique({
+        where: {
+          tournamentId_teamId: {
+            tournamentId: registration.tournamentId,
+            teamId: registration.teamId,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!tournamentTeam) {
+        throw new Error(brokenApprovedRegistrationMessage);
+      }
+
+      const linkedMatch = await transaction.match.findFirst({
+        where: {
+          tournamentId: registration.tournamentId,
+          OR: [
+            { homeTeamId: registration.teamId },
+            { awayTeamId: registration.teamId },
+          ],
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (linkedMatch) {
+        throw new Error(blockedMatchesMessage);
+      }
+
+      await transaction.player.deleteMany({
+        where: {
+          teamId: registration.teamId,
+        },
+      });
+
+      await transaction.tournamentTeam.delete({
+        where: {
+          tournamentId_teamId: {
+            tournamentId: registration.tournamentId,
+            teamId: registration.teamId,
+          },
+        },
+      });
+
+      await transaction.teamRegistration.delete({
+        where: {
+          id: registration.id,
+        },
+      });
+
+      const remainingTournamentTeam = await transaction.tournamentTeam.findFirst({
+        where: {
+          teamId: registration.teamId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      const remainingRegistrationLink = await transaction.teamRegistration.findFirst({
+        where: {
+          teamId: registration.teamId,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!remainingTournamentTeam && !remainingRegistrationLink) {
+        await transaction.team.delete({
+          where: {
+            id: registration.teamId,
+          },
+        });
+      }
+
+      return "Squadra rimossa dal torneo.";
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      const knownMessage =
+        error.message === blockedMatchesMessage ||
+        error.message === brokenApprovedRegistrationMessage ||
+        error.message === "Impossibile completare l'operazione.";
+
+      return redirectWithMessage(
+        dashboardPath,
+        "error",
+        knownMessage ? error.message : "Impossibile completare l'operazione.",
+      );
+    }
+
+    return redirectWithMessage(dashboardPath, "error", "Impossibile completare l'operazione.");
+  }
+
+  await deleteTeamRegistrationDocuments(documentFilePathsToDelete);
+  revalidateTournamentPaths(parsed.data.tournamentSlug);
+
+  return redirectWithMessage(
+    dashboardPath,
+    "success",
+    successMessage ?? "Impossibile completare l'operazione.",
+  );
 }
