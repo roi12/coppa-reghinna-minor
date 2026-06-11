@@ -162,10 +162,18 @@ Required variables:
   PostgreSQL connection string for local and production environments.
 - `APP_URL`
   Public base URL used for metadata, sitemap, and robots output.
-- `RESEND_API_KEY`
-  Resend API key used only on the server for captain-facing emails.
+- `SMTP_HOST`
+  SMTP host for captain-facing email delivery. For Gmail use `smtp.gmail.com`.
+- `SMTP_PORT`
+  SMTP port. For Gmail app-password delivery use `465`.
+- `SMTP_SECURE`
+  SMTP TLS mode. For Gmail on port `465` use `true`.
+- `SMTP_USER`
+  SMTP username. For this setup use `coppareghinnaminor@gmail.com`.
+- `SMTP_PASSWORD`
+  Gmail App Password used only on the server.
 - `EMAIL_FROM`
-  Use `Coppa Reghinna Minor <onboarding@resend.dev>` for the MVP sender.
+  Use `Coppa Reghinna Minor <coppareghinnaminor@gmail.com>` for the sender.
 - `EMAIL_REPLY_TO`
   Reply-to inbox for captain replies. Use `coppareghinnaminor@gmail.com`.
 - `SUPABASE_URL`
@@ -175,7 +183,7 @@ Required variables:
 - `SUPABASE_TEAM_DOCUMENTS_BUCKET`
   Private bucket name used for team registration player documents.
 
-If `RESEND_API_KEY` or `EMAIL_FROM` is missing, registration and approval still work and captain emails are skipped safely.
+If `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, or `EMAIL_FROM` is missing, registration and approval still work and captain emails are skipped safely.
 
 Production seed variables:
 
@@ -196,8 +204,12 @@ Example local PostgreSQL configuration:
 ```env
 DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/sports_platform?schema=public"
 APP_URL="http://localhost:3000"
-RESEND_API_KEY=""
-EMAIL_FROM="Coppa Reghinna Minor <onboarding@resend.dev>"
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="465"
+SMTP_SECURE="true"
+SMTP_USER="coppareghinnaminor@gmail.com"
+SMTP_PASSWORD=""
+EMAIL_FROM="Coppa Reghinna Minor <coppareghinnaminor@gmail.com>"
 EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
@@ -209,8 +221,12 @@ Example production PostgreSQL configuration:
 ```env
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
 APP_URL="https://your-domain.example"
-RESEND_API_KEY=""
-EMAIL_FROM="Coppa Reghinna Minor <onboarding@resend.dev>"
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="465"
+SMTP_SECURE="true"
+SMTP_USER="coppareghinnaminor@gmail.com"
+SMTP_PASSWORD=""
+EMAIL_FROM="Coppa Reghinna Minor <coppareghinnaminor@gmail.com>"
 EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
 SUPABASE_URL="https://your-project-ref.supabase.co"
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
