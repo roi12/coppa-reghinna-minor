@@ -24,6 +24,8 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.1",
     "next": "16.2.6",
     "nodemailer": "^8.0.11",
     "pg": "^8.16.3",
