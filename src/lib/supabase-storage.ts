@@ -2,7 +2,7 @@ import "server-only";
 
 import {
   TEAM_REGISTRATION_PLAYER_DOCUMENT_ALLOWED_MIME_TYPES,
-  TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_BYTES,
+  getTeamRegistrationPlayerDocumentValidationError,
 } from "@/features/team-registrations/utils/team-registration-player-documents";
 
 type UploadPrivateBucketObjectInput = {
@@ -61,19 +61,7 @@ export function isAllowedTeamRegistrationPlayerDocumentMimeType(mimeType: string
 }
 
 export function validateTeamRegistrationPlayerDocumentFile(file: File) {
-  if (file.size <= 0) {
-    return "Seleziona un file da caricare.";
-  }
-
-  if (file.size > TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_BYTES) {
-    return "Il file supera il limite di 5 MB.";
-  }
-
-  if (!isAllowedTeamRegistrationPlayerDocumentMimeType(file.type)) {
-    return "Sono accettati solo file PDF, JPG o PNG.";
-  }
-
-  return null;
+  return getTeamRegistrationPlayerDocumentValidationError(file);
 }
 
 export function buildTeamRegistrationPlayerDocumentPath(args: {

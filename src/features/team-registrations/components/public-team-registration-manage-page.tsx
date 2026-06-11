@@ -1,16 +1,9 @@
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
-import {
-  markTeamRegistrationPlayerPaperDeliveryAction,
-  uploadTeamRegistrationPlayerDocumentAction,
-} from "@/features/team-registrations/server/team-registration-document-actions";
+import { PrivateManagePlayerDocumentCard } from "@/features/team-registrations/components/private-manage-player-document-card";
 import type { TeamRegistrationManageDetail } from "@/features/team-registrations/types/team-registration.types";
 import {
-  TEAM_REGISTRATION_PLAYER_DOCUMENT_ACCEPT,
   TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL,
-  formatTeamRegistrationDocumentSize,
   summarizeTeamRegistrationPlayerDocuments,
-  teamRegistrationPlayerDocumentStatusBadgeClassNames,
-  teamRegistrationPlayerDocumentStatusLabels,
 } from "@/features/team-registrations/utils/team-registration-player-documents";
 import { formatDateTimeLabel } from "@/lib/format-date";
 import { TOURNAMENT_DOCUMENTS } from "@/lib/tournament-documents";
@@ -42,6 +35,7 @@ export function PublicTeamRegistrationManagePage({
   const captainFullName = `${registration.captainFirstName} ${registration.captainLastName}`.trim();
   const documentSummary = summarizeTeamRegistrationPlayerDocuments(registration.players);
   const documentsEditable = registration.status !== "REJECTED";
+  const globalFeedback = feedback?.playerId ? null : feedback;
   const documentSectionTitle =
     registration.status === "APPROVED"
       ? "Rosa approvata, documenti ancora caricabili"
@@ -51,7 +45,7 @@ export function PublicTeamRegistrationManagePage({
 
   return (
     <div className="grid gap-6">
-      <FeedbackBanner feedback={feedback} />
+      <FeedbackBanner feedback={globalFeedback} />
 
       <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -241,102 +235,14 @@ export function PublicTeamRegistrationManagePage({
 
         <div className="mt-6 grid gap-3">
           {registration.players.map((player) => (
-            <article
+            <PrivateManagePlayerDocumentCard
               key={player.id}
-              className="grid gap-4 rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-700"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-950">
-                    {player.firstName} {player.lastName}
-                  </p>
-                  <p className="text-slate-500">{player.role ?? "Ruolo non indicato"}</p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-slate-300 px-3 py-1 font-semibold text-slate-700">
-                    #{player.jerseyNumber}
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${teamRegistrationPlayerDocumentStatusBadgeClassNames[player.documentStatus]}`}
-                  >
-                    {teamRegistrationPlayerDocumentStatusLabels[player.documentStatus]}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid gap-2 text-sm text-slate-600">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                  Giocatore {player.sortOrder + 1}
-                </p>
-                {player.documentStatus === "UPLOADED" ? (
-                  <p>
-                    File caricato:{" "}
-                    <span className="font-medium text-slate-900">
-                      {player.documentFileName ?? "Documento"}
-                    </span>
-                    {player.documentUploadedAt
-                      ? ` · ${formatDateTimeLabel(player.documentUploadedAt)}`
-                      : ""}
-                    {formatTeamRegistrationDocumentSize(player.documentSizeBytes)
-                      ? ` · ${formatTeamRegistrationDocumentSize(player.documentSizeBytes)}`
-                      : ""}
-                  </p>
-                ) : player.documentStatus === "PAPER_DELIVERY" ? (
-                  <p>
-                    Consegna cartacea registrata
-                    {player.documentMarkedPaperAt
-                      ? ` il ${formatDateTimeLabel(player.documentMarkedPaperAt)}`
-                      : ""}.
-                  </p>
-                ) : (
-                  <p>Nessun documento registrato per questo giocatore.</p>
-                )}
-              </div>
-
-              {documentsEditable ? (
-                <div className="grid gap-3 border-t border-slate-200 pt-4">
-                  <form action={uploadTeamRegistrationPlayerDocumentAction} className="grid gap-3">
-                    <input type="hidden" name="tournamentSlug" value={registration.tournamentSlug} />
-                    <input type="hidden" name="token" value={token} />
-                    <input type="hidden" name="playerId" value={player.id} />
-                    <label className="grid gap-2 text-sm font-medium text-slate-700">
-                      {player.documentStatus === "UPLOADED"
-                        ? "Sostituisci documento"
-                        : "Carica documento"}
-                      <input
-                        type="file"
-                        name="documentFile"
-                        accept={TEAM_REGISTRATION_PLAYER_DOCUMENT_ACCEPT}
-                        className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-full file:border-0 file:bg-slate-950 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white"
-                      />
-                    </label>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                      <button
-                        type="submit"
-                        className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white sm:w-fit"
-                      >
-                        {player.documentStatus === "UPLOADED" ? "Aggiorna file" : "Carica file"}
-                      </button>
-                    </div>
-                  </form>
-
-                  <form
-                    action={markTeamRegistrationPlayerPaperDeliveryAction}
-                    className="flex flex-col gap-3 sm:flex-row sm:items-center"
-                  >
-                    <input type="hidden" name="tournamentSlug" value={registration.tournamentSlug} />
-                    <input type="hidden" name="token" value={token} />
-                    <input type="hidden" name="playerId" value={player.id} />
-                    <button
-                      type="submit"
-                      className="w-full rounded-full border border-amber-300 bg-white px-5 py-3 text-sm font-medium text-amber-900 sm:w-fit"
-                    >
-                      Segna consegna cartacea
-                    </button>
-                  </form>
-                </div>
-              ) : null}
-            </article>
+              documentsEditable={documentsEditable}
+              feedback={feedback?.playerId === player.id ? feedback : null}
+              player={player}
+              token={token}
+              tournamentSlug={registration.tournamentSlug}
+            />
           ))}
         </div>
       </section>

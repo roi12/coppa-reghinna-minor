@@ -15,6 +15,29 @@ export const TEAM_REGISTRATION_PLAYER_DOCUMENT_ACCEPT =
 export const TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_BYTES = 5 * 1024 * 1024;
 export const TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL = "5 MB";
 
+export function getTeamRegistrationPlayerDocumentValidationError(file: {
+  size: number;
+  type: string;
+}) {
+  if (file.size <= 0) {
+    return "Seleziona un file da caricare.";
+  }
+
+  if (file.size > TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_BYTES) {
+    return "Il file supera il limite di 5 MB.";
+  }
+
+  if (
+    !TEAM_REGISTRATION_PLAYER_DOCUMENT_ALLOWED_MIME_TYPES.includes(
+      file.type as (typeof TEAM_REGISTRATION_PLAYER_DOCUMENT_ALLOWED_MIME_TYPES)[number],
+    )
+  ) {
+    return "Sono accettati solo file PDF, JPG o PNG.";
+  }
+
+  return null;
+}
+
 export const teamRegistrationPlayerDocumentStatusLabels: Record<
   TeamRegistrationPlayerDocumentStatusValue,
   string

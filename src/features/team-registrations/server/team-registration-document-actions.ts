@@ -29,11 +29,23 @@ function redirectWithMessage(
   token: string,
   type: "success" | "error",
   message: string,
+  options?: {
+    documentAction?: "upload" | "paper-delivery";
+    playerId?: string;
+  },
 ): never {
   const searchParams = new URLSearchParams({
     type,
     message,
   });
+
+  if (options?.playerId) {
+    searchParams.set("playerId", options.playerId);
+  }
+
+  if (options?.documentAction) {
+    searchParams.set("documentAction", options.documentAction);
+  }
 
   redirect(`${buildCaptainManagePath(tournamentSlug, token)}?${searchParams.toString()}`);
 }
@@ -121,6 +133,10 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       token,
       "error",
       "Giocatore non trovato per questo link privato.",
+      {
+        documentAction: "upload",
+        playerId,
+      },
     );
   }
 
@@ -130,6 +146,10 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       token,
       "error",
       "I documenti non sono modificabili per un'iscrizione rifiutata.",
+      {
+        documentAction: "upload",
+        playerId,
+      },
     );
   }
 
@@ -141,13 +161,20 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       token,
       "error",
       "Seleziona un file PDF, JPG o PNG da caricare.",
+      {
+        documentAction: "upload",
+        playerId,
+      },
     );
   }
 
   const fileValidationError = validateTeamRegistrationPlayerDocumentFile(fileValue);
 
   if (fileValidationError) {
-    return redirectWithMessage(tournamentSlug, token, "error", fileValidationError);
+    return redirectWithMessage(tournamentSlug, token, "error", fileValidationError, {
+      documentAction: "upload",
+      playerId,
+    });
   }
 
   try {
@@ -198,6 +225,10 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       token,
       "error",
       "Caricamento non disponibile. Controlla la configurazione di Supabase Storage e riprova.",
+      {
+        documentAction: "upload",
+        playerId,
+      },
     );
   }
 
@@ -206,6 +237,10 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
     token,
     "success",
     `Documento caricato per ${access.player.firstName} ${access.player.lastName}.`,
+    {
+      documentAction: "upload",
+      playerId,
+    },
   );
 }
 
@@ -225,6 +260,10 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
       token,
       "error",
       "Giocatore non trovato per questo link privato.",
+      {
+        documentAction: "paper-delivery",
+        playerId,
+      },
     );
   }
 
@@ -234,6 +273,10 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
       token,
       "error",
       "I documenti non sono modificabili per un'iscrizione rifiutata.",
+      {
+        documentAction: "paper-delivery",
+        playerId,
+      },
     );
   }
 
@@ -268,5 +311,9 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
     token,
     "success",
     `Consegna cartacea registrata per ${access.player.firstName} ${access.player.lastName}.`,
+    {
+      documentAction: "paper-delivery",
+      playerId,
+    },
   );
 }
