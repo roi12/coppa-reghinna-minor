@@ -28,6 +28,7 @@ export async function PublicTournamentTeamRegistrationPage({
   }
 
   const registrationsOpen = tournament.status === "PUBLISHED";
+  const registrationSuccess = feedback?.type === "success";
 
   return (
     <div className="grid w-full max-w-full min-w-0 gap-6 xl:grid-cols-[minmax(0,0.82fr)_minmax(0,1.18fr)]">
@@ -120,14 +121,12 @@ export async function PublicTournamentTeamRegistrationPage({
             </p>
           </div>
 
-          <FeedbackBanner feedback={feedback} />
+          <FeedbackBanner feedback={!registrationSuccess ? feedback : null} />
         </div>
 
-        {manageLinkReveal ? (
+        {registrationSuccess ? (
           <CaptainManageLinkReveal tournamentSlug={slug} reveal={manageLinkReveal} />
-        ) : null}
-
-        {registrationsOpen ? (
+        ) : registrationsOpen ? (
           <div className="mt-6 w-full max-w-full min-w-0">
             <PublicTeamRegistrationForm tournamentId={tournament.id} tournamentSlug={tournament.slug} />
           </div>

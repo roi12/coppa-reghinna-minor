@@ -68,7 +68,7 @@ async function readCaptainManageLinkFlashCookie(
 
   return {
     managePath: buildCaptainManagePath(tournamentSlug, token),
-    manageUrl: buildCaptainManagePath(tournamentSlug, token),
+    manageUrl: buildCaptainManageUrl(tournamentSlug, token),
   };
 }
 

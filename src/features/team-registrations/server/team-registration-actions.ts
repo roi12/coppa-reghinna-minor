@@ -144,7 +144,6 @@ async function generateUniqueTeamSlug(
 type TeamRegistrationApprovalEmailPayload = {
   captainEmail: string;
   captainFirstName: string;
-  manageLink: string;
   teamName: string;
 };
 
@@ -340,8 +339,6 @@ export async function approveTeamRegistrationAction(formData: FormData) {
 
   const dashboardPath = getDashboardTournamentPath(parsed.data.tournamentSlug);
   let approvalErrorMessage: string | null = null;
-  const captainManageToken = generateCaptainManageToken();
-  const captainManageTokenIssuedAt = new Date();
   let approvalEmailPayload: TeamRegistrationApprovalEmailPayload | null = null;
 
   try {
@@ -452,10 +449,7 @@ export async function approveTeamRegistrationAction(formData: FormData) {
           reviewedAt: new Date(),
           reviewedByUserId: user.id,
           teamId: team.id,
-          captainManageTokenHash: hashCaptainManageToken(captainManageToken),
-          captainManageTokenIssuedAt: captainManageTokenIssuedAt,
-          captainManageTokenLastUsedAt: null,
-          captainManageTokenRevokedAt: null,
+          // Preserve the original private manage link. Only the manual reset action rotates it.
         },
       });
 
@@ -463,7 +457,6 @@ export async function approveTeamRegistrationAction(formData: FormData) {
         captainEmail: registration.captainEmail,
         captainFirstName: registration.captainFirstName,
         teamName: registration.teamName,
-        manageLink: buildCaptainManageUrl(parsed.data.tournamentSlug, captainManageToken),
       };
     });
   } catch (error) {
@@ -486,7 +479,6 @@ export async function approveTeamRegistrationAction(formData: FormData) {
       ...buildRegistrationApprovedEmail({
         captainFirstName: approvalEmailPayload.captainFirstName,
         teamName: approvalEmailPayload.teamName,
-        manageLink: approvalEmailPayload.manageLink,
       }),
     });
   }

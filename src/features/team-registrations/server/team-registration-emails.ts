@@ -4,6 +4,11 @@ type TeamRegistrationEmailInput = {
   manageLink: string;
 };
 
+type TeamRegistrationApprovedEmailInput = {
+  captainFirstName: string;
+  teamName: string;
+};
+
 type TeamRegistrationEmailContent = {
   subject: string;
   html: string;
@@ -41,21 +46,23 @@ export function buildRegistrationReceivedEmail({
     text: [
       `Ciao ${captainFirstName},`,
       `abbiamo ricevuto l'iscrizione della squadra ${teamName}.`,
-      "La richiesta e' in attesa di verifica da parte dell'organizzazione.",
-      "Puoi usare questo link privato per controllare lo stato, scaricare i moduli e completare la documentazione:",
+      "La squadra sara' approvata solo dopo il controllo degli organizzatori.",
+      "Usa questo link privato della squadra per raccogliere e caricare i documenti della squadra:",
       manageLink,
-      "Attenzione: chiunque abbia questo link puo' accedere alla gestione della squadra. Non condividerlo pubblicamente.",
+      "Condividilo solo con i giocatori della tua squadra.",
+      "Chiunque abbia questo link puo' accedere alla gestione della squadra.",
       "Per dubbi puoi rispondere direttamente a questa email.",
     ].join("\n\n"),
     html: renderEmailHtml([
       `Ciao ${safeCaptainFirstName},`,
       `abbiamo ricevuto l'iscrizione della squadra <strong>${safeTeamName}</strong>.`,
-      "La richiesta e' in attesa di verifica da parte dell'organizzazione.",
+      "La squadra sara' approvata solo dopo il controllo degli organizzatori.",
       [
-        "Puoi usare questo link privato per controllare lo stato, scaricare i moduli e completare la documentazione:",
+        "Usa questo link privato della squadra per raccogliere e caricare i documenti della squadra:",
         `<br /><a href="${safeManageLink}">${safeManageLink}</a>`,
       ].join(""),
-      "Attenzione: chiunque abbia questo link puo' accedere alla gestione della squadra. Non condividerlo pubblicamente.",
+      "Condividilo solo con i giocatori della tua squadra.",
+      "Chiunque abbia questo link puo' accedere alla gestione della squadra.",
       "Per dubbi puoi rispondere direttamente a questa email.",
     ]),
   };
@@ -64,34 +71,26 @@ export function buildRegistrationReceivedEmail({
 export function buildRegistrationApprovedEmail({
   captainFirstName,
   teamName,
-  manageLink,
-}: TeamRegistrationEmailInput): TeamRegistrationEmailContent {
+}: TeamRegistrationApprovedEmailInput): TeamRegistrationEmailContent {
   const safeCaptainFirstName = escapeHtml(captainFirstName);
   const safeTeamName = escapeHtml(teamName);
-  const safeManageLink = escapeHtml(manageLink);
 
   return {
     subject: "Squadra approvata — Coppa Reghinna Minor 2026",
     text: [
       `Ciao ${captainFirstName},`,
       `la squadra ${teamName} e' stata approvata per la Coppa Reghinna Minor 2026.`,
-      "Per motivi di sicurezza abbiamo generato un nuovo link privato di gestione.",
-      "Usa questo link per consultare lo stato della squadra, scaricare i moduli e completare la documentazione:",
-      manageLink,
-      "Il link precedente, se presente, non e' piu' valido.",
-      "Non condividere questo link pubblicamente.",
+      "Puoi continuare a usare lo stesso link privato ricevuto dopo l'iscrizione per completare o aggiornare i documenti.",
+      "Se hai perso il link, contatta gli organizzatori per riceverne uno nuovo.",
+      "Condividi il link privato della squadra solo con i giocatori della tua squadra.",
       "Per dubbi puoi rispondere direttamente a questa email.",
     ].join("\n\n"),
     html: renderEmailHtml([
       `Ciao ${safeCaptainFirstName},`,
       `la squadra <strong>${safeTeamName}</strong> e' stata approvata per la Coppa Reghinna Minor 2026.`,
-      "Per motivi di sicurezza abbiamo generato un nuovo link privato di gestione.",
-      [
-        "Usa questo link per consultare lo stato della squadra, scaricare i moduli e completare la documentazione:",
-        `<br /><a href="${safeManageLink}">${safeManageLink}</a>`,
-      ].join(""),
-      "Il link precedente, se presente, non e' piu' valido.",
-      "Non condividere questo link pubblicamente.",
+      "Puoi continuare a usare lo stesso link privato ricevuto dopo l'iscrizione per completare o aggiornare i documenti.",
+      "Se hai perso il link, contatta gli organizzatori per riceverne uno nuovo.",
+      "Condividi il link privato della squadra solo con i giocatori della tua squadra.",
       "Per dubbi puoi rispondere direttamente a questa email.",
     ]),
   };
