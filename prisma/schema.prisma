@@ -165,6 +165,12 @@ model TeamRegistration {
   captainManageTokenIssuedAt   DateTime?
   captainManageTokenLastUsedAt DateTime?
   captainManageTokenRevokedAt  DateTime?
+  gdprDocumentFilePath         String?
+  gdprDocumentFileName         String?
+  gdprDocumentMimeType         String?
+  gdprDocumentSizeBytes        Int?
+  gdprDocumentUploadedAt       DateTime?
+  gdprPaperDeliveryMarkedAt    DateTime?
   status           TeamRegistrationStatus @default(PENDING)
   reviewedAt       DateTime?
   reviewedByUserId String?

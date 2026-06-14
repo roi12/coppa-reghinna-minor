@@ -74,6 +74,15 @@ export function buildTeamRegistrationPlayerDocumentPath(args: {
   return `team-registrations/${args.registrationId}/players/${args.playerId}/${Date.now()}-${safeFileName}`;
 }
 
+export function buildTeamRegistrationGdprDocumentPath(args: {
+  registrationId: string;
+  originalFileName: string;
+}) {
+  const safeFileName = sanitizeFileName(args.originalFileName);
+
+  return `team-registrations/${args.registrationId}/gdpr/${Date.now()}-${safeFileName}`;
+}
+
 export async function uploadPrivateBucketObject({
   bucketName,
   objectPath,

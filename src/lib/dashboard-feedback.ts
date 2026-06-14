@@ -3,6 +3,7 @@ export type DashboardFeedback = {
   message: string;
   playerId?: string;
   documentAction?: "upload" | "paper-delivery";
+  documentTarget?: "player" | "gdpr";
 };
 
 export async function readDashboardFeedback(
@@ -17,6 +18,7 @@ export async function readDashboardFeedback(
   const message = searchParams.message;
   const playerId = searchParams.playerId;
   const documentAction = searchParams.documentAction;
+  const documentTarget = searchParams.documentTarget;
 
   if (
     (type !== "success" && type !== "error") ||
@@ -34,5 +36,7 @@ export async function readDashboardFeedback(
       documentAction === "upload" || documentAction === "paper-delivery"
         ? documentAction
         : undefined,
+    documentTarget:
+      documentTarget === "player" || documentTarget === "gdpr" ? documentTarget : undefined,
   };
 }
