@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 
+import { FUTSAL_PLAYER_ROLE_OPTIONS } from "@/features/team-registrations/constants/futsal-player-roles";
 import { submitTeamRegistrationAction } from "@/features/team-registrations/server/team-registration-actions";
 import { BRAND } from "@/lib/brand";
 
@@ -33,6 +34,10 @@ function createPlayerRow(id: number): PlayerRow {
 
 function createInitialPlayers() {
   return Array.from({ length: MIN_PLAYERS }, (_, index) => createPlayerRow(index));
+}
+
+function isValidJerseyNumberInput(value: string) {
+  return /^\d{0,2}$/.test(value);
 }
 
 export function PublicTeamRegistrationForm({
@@ -151,8 +156,8 @@ export function PublicTeamRegistrationForm({
         <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-tight text-slate-950">Rosa squadra</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Inserisci da 5 a 11 giocatori. I numeri maglia devono essere interi positivi e non
-            possono ripetersi nella stessa squadra.
+            Inserisci da 5 a 11 giocatori. I numeri maglia devono essere compresi tra 0 e 99 e
+            non possono ripetersi nella stessa squadra.
           </p>
         </div>
 
@@ -214,30 +219,42 @@ export function PublicTeamRegistrationForm({
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
                   Numero maglia
                   <input
-                    type="number"
-                    min="1"
-                    step="1"
+                    type="text"
                     inputMode="numeric"
+                    maxLength={2}
+                    pattern="[0-9]*"
+                    autoComplete="off"
                     name="playerJerseyNumber"
                     data-testid="player-jersey-number"
                     value={player.jerseyNumber}
-                    onChange={(event) =>
-                      updatePlayer(player.id, "jerseyNumber", event.target.value)
-                    }
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+
+                      if (!isValidJerseyNumberInput(nextValue)) {
+                        return;
+                      }
+
+                      updatePlayer(player.id, "jerseyNumber", nextValue);
+                    }}
                     className="w-full max-w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
                     placeholder="10"
                   />
                 </label>
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
                   Ruolo
-                  <input
+                  <select
                     name="playerRole"
                     data-testid="player-role"
                     value={player.role}
                     onChange={(event) => updatePlayer(player.id, "role", event.target.value)}
                     className="w-full max-w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
-                    placeholder="Pivot"
-                  />
+                  >
+                    {FUTSAL_PLAYER_ROLE_OPTIONS.map((roleOption) => (
+                      <option key={roleOption.label} value={roleOption.value}>
+                        {roleOption.label}
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
             </article>

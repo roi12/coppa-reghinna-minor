@@ -59,7 +59,7 @@ export async function PublicTournamentTeamRegistrationPage({
           <ul className="grid gap-3 leading-6">
             <li>Registra la tua squadra come capitano del roster.</li>
             <li>Minimo 5 giocatori, massimo 11 giocatori.</li>
-            <li>Inserisci nome, cognome, numero maglia e ruolo opzionale per ogni atleta.</li>
+            <li>Inserisci nome, cognome, numero maglia da 0 a 99 e ruolo per ogni atleta.</li>
             <li>L’iscrizione verrà controllata dall’organizzazione.</li>
             <li>Solo dopo l’approvazione la squadra sarà visibile pubblicamente.</li>
             <li>

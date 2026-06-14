@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { isFutsalPlayerRole } from "@/features/team-registrations/constants/futsal-player-roles";
+
 const optionalTrimmedString = (schema: z.ZodString) =>
   z.preprocess((value) => {
     if (typeof value !== "string") {
@@ -26,9 +28,15 @@ export const teamRegistrationPlayerSchema = z.object({
     .string()
     .trim()
     .min(1, "Il numero maglia è obbligatorio.")
-    .max(10, "Il numero maglia deve avere al massimo 10 caratteri.")
-    .regex(/^[1-9]\d*$/, "Il numero maglia deve essere un intero positivo."),
-  role: optionalTrimmedString(z.string().max(80, "Il ruolo deve avere al massimo 80 caratteri.")),
+    .regex(/^\d{1,2}$/, "Il numero di maglia deve essere compreso tra 0 e 99.")
+    .refine((value) => Number(value) >= 0 && Number(value) <= 99, {
+      message: "Il numero di maglia deve essere compreso tra 0 e 99.",
+    }),
+  role: optionalTrimmedString(
+    z.string().refine((value) => isFutsalPlayerRole(value), {
+      message: "Seleziona un ruolo valido.",
+    }),
+  ),
   sortOrder: z
     .number()
     .int("L'ordine dei giocatori deve essere un numero intero.")
