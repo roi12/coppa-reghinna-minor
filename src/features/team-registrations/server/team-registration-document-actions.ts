@@ -2,16 +2,26 @@
 
 import { redirect } from "next/navigation";
 
+import { manageTeamRegistrationGdprDocumentSchema } from "@/features/team-registrations/schemas/manage-team-registration-gdpr-document.schema";
 import { manageTeamRegistrationPlayerDocumentSchema } from "@/features/team-registrations/schemas/manage-team-registration-player-document.schema";
 import { buildCaptainManagePath, hashCaptainManageToken } from "@/features/team-registrations/server/captain-manage-link";
 import { prisma } from "@/lib/prisma";
 import {
+  buildTeamRegistrationGdprDocumentPath,
   buildTeamRegistrationPlayerDocumentPath,
   deletePrivateBucketObject,
   getSupabaseTeamDocumentsBucketName,
   uploadPrivateBucketObject,
   validateTeamRegistrationPlayerDocumentFile,
 } from "@/lib/supabase-storage";
+
+type ManageRegistrationAccess = {
+  registrationId: string;
+  registrationStatus: "PENDING" | "APPROVED" | "REJECTED";
+  captainFirstName: string;
+  captainLastName: string;
+  gdprDocumentFilePath: string | null;
+};
 
 type ManageRegistrationPlayerAccess = {
   registrationId: string;
@@ -31,6 +41,7 @@ function redirectWithMessage(
   message: string,
   options?: {
     documentAction?: "upload" | "paper-delivery";
+    documentTarget?: "player" | "gdpr";
     playerId?: string;
   },
 ): never {
@@ -47,7 +58,18 @@ function redirectWithMessage(
     searchParams.set("documentAction", options.documentAction);
   }
 
+  if (options?.documentTarget) {
+    searchParams.set("documentTarget", options.documentTarget);
+  }
+
   redirect(`${buildCaptainManagePath(tournamentSlug, token)}?${searchParams.toString()}`);
+}
+
+function readManageGdprDocumentActionInput(formData: FormData) {
+  return manageTeamRegistrationGdprDocumentSchema.safeParse({
+    tournamentSlug: formData.get("tournamentSlug"),
+    token: formData.get("token"),
+  });
 }
 
 function readManageDocumentActionInput(formData: FormData) {
@@ -56,6 +78,40 @@ function readManageDocumentActionInput(formData: FormData) {
     token: formData.get("token"),
     playerId: formData.get("playerId"),
   });
+}
+
+async function getManageRegistrationAccess(
+  tournamentSlug: string,
+  token: string,
+): Promise<ManageRegistrationAccess | null> {
+  const registration = await prisma.teamRegistration.findFirst({
+    where: {
+      captainManageTokenHash: hashCaptainManageToken(token),
+      captainManageTokenRevokedAt: null,
+      tournament: {
+        slug: tournamentSlug,
+      },
+    },
+    select: {
+      id: true,
+      captainFirstName: true,
+      captainLastName: true,
+      status: true,
+      gdprDocumentFilePath: true,
+    },
+  });
+
+  if (!registration) {
+    return null;
+  }
+
+  return {
+    registrationId: registration.id,
+    registrationStatus: registration.status,
+    captainFirstName: registration.captainFirstName,
+    captainLastName: registration.captainLastName,
+    gdprDocumentFilePath: registration.gdprDocumentFilePath,
+  };
 }
 
 async function getManageRegistrationPlayerAccess(
@@ -105,7 +161,7 @@ async function getManageRegistrationPlayerAccess(
   };
 }
 
-async function deletePreviousPlayerDocumentIfPresent(documentFilePath: string | null) {
+async function deletePreviousStoredDocumentIfPresent(documentFilePath: string | null) {
   if (!documentFilePath) {
     return;
   }
@@ -115,6 +171,123 @@ async function deletePreviousPlayerDocumentIfPresent(documentFilePath: string | 
   } catch (error) {
     console.error("Failed to delete previous team document", error);
   }
+}
+
+export async function uploadTeamRegistrationGdprDocumentAction(formData: FormData) {
+  const parsed = readManageGdprDocumentActionInput(formData);
+
+  if (!parsed.success) {
+    return redirect("/tournaments?type=error&message=Link%20privato%20non%20valido.");
+  }
+
+  const { tournamentSlug, token } = parsed.data;
+  const access = await getManageRegistrationAccess(tournamentSlug, token);
+
+  if (!access) {
+    return redirectWithMessage(
+      tournamentSlug,
+      token,
+      "error",
+      "Iscrizione non trovata per questo link privato.",
+      {
+        documentAction: "upload",
+        documentTarget: "gdpr",
+      },
+    );
+  }
+
+  if (access.registrationStatus === "REJECTED") {
+    return redirectWithMessage(
+      tournamentSlug,
+      token,
+      "error",
+      "I documenti non sono modificabili per un'iscrizione rifiutata.",
+      {
+        documentAction: "upload",
+        documentTarget: "gdpr",
+      },
+    );
+  }
+
+  const fileValue = formData.get("documentFile");
+
+  if (!(fileValue instanceof File)) {
+    return redirectWithMessage(
+      tournamentSlug,
+      token,
+      "error",
+      "Seleziona un file PDF, JPG o PNG da caricare.",
+      {
+        documentAction: "upload",
+        documentTarget: "gdpr",
+      },
+    );
+  }
+
+  const fileValidationError = validateTeamRegistrationPlayerDocumentFile(fileValue);
+
+  if (fileValidationError) {
+    return redirectWithMessage(tournamentSlug, token, "error", fileValidationError, {
+      documentAction: "upload",
+      documentTarget: "gdpr",
+    });
+  }
+
+  try {
+    const bucketName = getSupabaseTeamDocumentsBucketName();
+    const objectPath = buildTeamRegistrationGdprDocumentPath({
+      registrationId: access.registrationId,
+      originalFileName: fileValue.name,
+    });
+
+    await uploadPrivateBucketObject({
+      bucketName,
+      objectPath,
+      body: await fileValue.arrayBuffer(),
+      contentType: fileValue.type,
+    });
+
+    await prisma.teamRegistration.update({
+      where: {
+        id: access.registrationId,
+      },
+      data: {
+        gdprDocumentFilePath: objectPath,
+        gdprDocumentFileName: fileValue.name,
+        gdprDocumentMimeType: fileValue.type,
+        gdprDocumentSizeBytes: fileValue.size,
+        gdprDocumentUploadedAt: new Date(),
+        gdprPaperDeliveryMarkedAt: null,
+        captainManageTokenLastUsedAt: new Date(),
+      },
+    });
+
+    await deletePreviousStoredDocumentIfPresent(access.gdprDocumentFilePath);
+  } catch (error) {
+    console.error("Team registration GDPR document upload failed", error);
+
+    return redirectWithMessage(
+      tournamentSlug,
+      token,
+      "error",
+      "Caricamento non disponibile. Controlla la configurazione di Supabase Storage e riprova.",
+      {
+        documentAction: "upload",
+        documentTarget: "gdpr",
+      },
+    );
+  }
+
+  return redirectWithMessage(
+    tournamentSlug,
+    token,
+    "success",
+    `Documento privacy / GDPR caricato per ${access.captainFirstName} ${access.captainLastName}.`,
+    {
+      documentAction: "upload",
+      documentTarget: "gdpr",
+    },
+  );
 }
 
 export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormData) {
@@ -135,6 +308,7 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       "Giocatore non trovato per questo link privato.",
       {
         documentAction: "upload",
+        documentTarget: "player",
         playerId,
       },
     );
@@ -148,6 +322,7 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       "I documenti non sono modificabili per un'iscrizione rifiutata.",
       {
         documentAction: "upload",
+        documentTarget: "player",
         playerId,
       },
     );
@@ -163,6 +338,7 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       "Seleziona un file PDF, JPG o PNG da caricare.",
       {
         documentAction: "upload",
+        documentTarget: "player",
         playerId,
       },
     );
@@ -173,6 +349,7 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
   if (fileValidationError) {
     return redirectWithMessage(tournamentSlug, token, "error", fileValidationError, {
       documentAction: "upload",
+      documentTarget: "player",
       playerId,
     });
   }
@@ -216,7 +393,7 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       },
     });
 
-    await deletePreviousPlayerDocumentIfPresent(access.player.documentFilePath);
+    await deletePreviousStoredDocumentIfPresent(access.player.documentFilePath);
   } catch (error) {
     console.error("Team registration player document upload failed", error);
 
@@ -227,6 +404,7 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
       "Caricamento non disponibile. Controlla la configurazione di Supabase Storage e riprova.",
       {
         documentAction: "upload",
+        documentTarget: "player",
         playerId,
       },
     );
@@ -239,7 +417,73 @@ export async function uploadTeamRegistrationPlayerDocumentAction(formData: FormD
     `Documento caricato per ${access.player.firstName} ${access.player.lastName}.`,
     {
       documentAction: "upload",
+      documentTarget: "player",
       playerId,
+    },
+  );
+}
+
+export async function markTeamRegistrationGdprPaperDeliveryAction(formData: FormData) {
+  const parsed = readManageGdprDocumentActionInput(formData);
+
+  if (!parsed.success) {
+    return redirect("/tournaments?type=error&message=Link%20privato%20non%20valido.");
+  }
+
+  const { tournamentSlug, token } = parsed.data;
+  const access = await getManageRegistrationAccess(tournamentSlug, token);
+
+  if (!access) {
+    return redirectWithMessage(
+      tournamentSlug,
+      token,
+      "error",
+      "Iscrizione non trovata per questo link privato.",
+      {
+        documentAction: "paper-delivery",
+        documentTarget: "gdpr",
+      },
+    );
+  }
+
+  if (access.registrationStatus === "REJECTED") {
+    return redirectWithMessage(
+      tournamentSlug,
+      token,
+      "error",
+      "I documenti non sono modificabili per un'iscrizione rifiutata.",
+      {
+        documentAction: "paper-delivery",
+        documentTarget: "gdpr",
+      },
+    );
+  }
+
+  await prisma.teamRegistration.update({
+    where: {
+      id: access.registrationId,
+    },
+    data: {
+      gdprDocumentFilePath: null,
+      gdprDocumentFileName: null,
+      gdprDocumentMimeType: null,
+      gdprDocumentSizeBytes: null,
+      gdprDocumentUploadedAt: null,
+      gdprPaperDeliveryMarkedAt: new Date(),
+      captainManageTokenLastUsedAt: new Date(),
+    },
+  });
+
+  await deletePreviousStoredDocumentIfPresent(access.gdprDocumentFilePath);
+
+  return redirectWithMessage(
+    tournamentSlug,
+    token,
+    "success",
+    `Consegna cartacea GDPR registrata per ${access.captainFirstName} ${access.captainLastName}.`,
+    {
+      documentAction: "paper-delivery",
+      documentTarget: "gdpr",
     },
   );
 }
@@ -262,6 +506,7 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
       "Giocatore non trovato per questo link privato.",
       {
         documentAction: "paper-delivery",
+        documentTarget: "player",
         playerId,
       },
     );
@@ -275,6 +520,7 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
       "I documenti non sono modificabili per un'iscrizione rifiutata.",
       {
         documentAction: "paper-delivery",
+        documentTarget: "player",
         playerId,
       },
     );
@@ -304,7 +550,7 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
     },
   });
 
-  await deletePreviousPlayerDocumentIfPresent(access.player.documentFilePath);
+  await deletePreviousStoredDocumentIfPresent(access.player.documentFilePath);
 
   return redirectWithMessage(
     tournamentSlug,
@@ -313,6 +559,7 @@ export async function markTeamRegistrationPlayerPaperDeliveryAction(formData: Fo
     `Consegna cartacea registrata per ${access.player.firstName} ${access.player.lastName}.`,
     {
       documentAction: "paper-delivery",
+      documentTarget: "player",
       playerId,
     },
   );

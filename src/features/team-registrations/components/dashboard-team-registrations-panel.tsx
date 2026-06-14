@@ -11,6 +11,7 @@ import type {
   TeamRegistrationStatusValue,
 } from "@/features/team-registrations/types/team-registration.types";
 import {
+  getTeamRegistrationGdprDocumentStatus,
   summarizeTeamRegistrationPlayerDocuments,
   teamRegistrationPlayerDocumentStatusBadgeClassNames,
   teamRegistrationPlayerDocumentStatusLabels,
@@ -118,6 +119,7 @@ export function DashboardTeamRegistrationsPanel({
                   const documentSummary = summarizeTeamRegistrationPlayerDocuments(
                     registration.players,
                   );
+                  const gdprDocumentStatus = getTeamRegistrationGdprDocumentStatus(registration);
                   const destructiveButtonLabel =
                     registration.status === "APPROVED"
                       ? "Rimuovi squadra"
@@ -194,19 +196,19 @@ export function DashboardTeamRegistrationsPanel({
                           </div>
 
                           <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                              Documenti
-                            </p>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                                {documentSummary.uploaded} caricati
-                              </span>
-                              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
-                                {documentSummary.paperDelivery} consegna cartacea
-                              </span>
-                              <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-semibold text-slate-700">
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Documenti</p>
+                            <div className="mt-2 grid gap-2 text-sm text-slate-700">
+                              <p>
+                                <span className="font-medium text-slate-950">GDPR capitano:</span>{" "}
+                                {teamRegistrationPlayerDocumentStatusLabels[gdprDocumentStatus]}
+                              </p>
+                              <p>
+                                <span className="font-medium text-slate-950">
+                                  Documenti giocatori:
+                                </span>{" "}
+                                {documentSummary.uploaded} caricati / {documentSummary.paperDelivery} cartacei /{" "}
                                 {documentSummary.missing} mancanti
-                              </span>
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -342,6 +344,33 @@ export function DashboardTeamRegistrationsPanel({
 
                             <section className="grid gap-3">
                               <h6 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                                Documento privacy / GDPR del capitano
+                              </h6>
+                              <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                  <div className="min-w-0">
+                                    <p className="font-medium text-slate-950">
+                                      Documento richiesto una sola volta per la squadra
+                                    </p>
+                                    <p className="mt-1 leading-6 text-slate-600">
+                                      {gdprDocumentStatus === "UPLOADED"
+                                        ? `File: ${registration.gdprDocumentFileName ?? "Documento GDPR caricato"}`
+                                        : gdprDocumentStatus === "PAPER_DELIVERY"
+                                          ? "Documento previsto in consegna cartacea"
+                                          : "Documento ancora mancante"}
+                                    </p>
+                                  </div>
+                                  <span
+                                    className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${teamRegistrationPlayerDocumentStatusBadgeClassNames[gdprDocumentStatus]}`}
+                                  >
+                                    {teamRegistrationPlayerDocumentStatusLabels[gdprDocumentStatus]}
+                                  </span>
+                                </div>
+                              </div>
+                            </section>
+
+                            <section className="grid gap-3">
+                              <h6 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
                                 Giocatori
                               </h6>
                               <div className="grid gap-2">
@@ -378,7 +407,7 @@ export function DashboardTeamRegistrationsPanel({
 
                             <section className="grid gap-3">
                               <h6 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                                Documenti
+                                Esonero responsabilità / infortuni giocatore
                               </h6>
                               <div className="grid gap-2">
                                 {registration.players.map((player) => (

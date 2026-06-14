@@ -1,9 +1,12 @@
 import { FeedbackBanner } from "@/components/ui/feedback-banner";
+import { PrivateManageCaptainGdprDocumentCard } from "@/features/team-registrations/components/private-manage-captain-gdpr-document-card";
 import { PrivateManagePlayerDocumentCard } from "@/features/team-registrations/components/private-manage-player-document-card";
 import type { TeamRegistrationManageDetail } from "@/features/team-registrations/types/team-registration.types";
 import {
   TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL,
+  getTeamRegistrationGdprDocumentStatus,
   summarizeTeamRegistrationPlayerDocuments,
+  teamRegistrationPlayerDocumentStatusLabels,
 } from "@/features/team-registrations/utils/team-registration-player-documents";
 import { formatDateTimeLabel } from "@/lib/format-date";
 import { TOURNAMENT_DOCUMENTS } from "@/lib/tournament-documents";
@@ -34,18 +37,21 @@ export function PublicTeamRegistrationManagePage({
 }: PublicTeamRegistrationManagePageProps) {
   const captainFullName = `${registration.captainFirstName} ${registration.captainLastName}`.trim();
   const documentSummary = summarizeTeamRegistrationPlayerDocuments(registration.players);
+  const gdprDocumentStatus = getTeamRegistrationGdprDocumentStatus(registration);
   const documentsEditable = registration.status !== "REJECTED";
   const globalFeedback = feedback?.playerId ? null : feedback;
+  const gdprFeedback = feedback?.documentTarget === "gdpr" ? globalFeedback : null;
+  const pageFeedback = feedback?.documentTarget === "gdpr" ? null : globalFeedback;
   const documentSectionTitle =
     registration.status === "APPROVED"
       ? "Rosa approvata, documenti ancora caricabili"
       : registration.status === "REJECTED"
         ? "Documenti non modificabili"
-        : "Caricamento documenti giocatori";
+        : "Esonero responsabilità / infortuni giocatore";
 
   return (
     <div className="grid gap-6">
-      <FeedbackBanner feedback={globalFeedback} />
+      <FeedbackBanner feedback={pageFeedback} />
 
       <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -59,8 +65,9 @@ export function PublicTeamRegistrationManagePage({
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Questa pagina mostra lo stato dell&apos;iscrizione per il torneo{" "}
               <span className="font-medium text-slate-900">{registration.tournamentName}</span>.
-              La rosa resta in sola lettura, ma i documenti dei giocatori possono essere caricati
-              dal link privato finch&eacute; l&apos;iscrizione non viene rifiutata.
+              La rosa resta in sola lettura, ma dal link privato puoi completare il documento
+              privacy / GDPR del capitano e i documenti dei giocatori finch&eacute;
+              l&apos;iscrizione non viene rifiutata.
             </p>
           </div>
           <span
@@ -70,7 +77,7 @@ export function PublicTeamRegistrationManagePage({
           </span>
         </div>
 
-        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Capitano</p>
             <p className="mt-1 text-sm font-medium text-slate-950">{captainFullName}</p>
@@ -92,7 +99,15 @@ export function PublicTeamRegistrationManagePage({
             </p>
           </div>
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
-            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Documenti</p>
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">GDPR capitano</p>
+            <p className="mt-1 text-sm font-medium text-slate-950">
+              {teamRegistrationPlayerDocumentStatusLabels[gdprDocumentStatus]}
+            </p>
+          </div>
+          <div className="rounded-2xl bg-slate-50 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
+              Documenti giocatori
+            </p>
             <p className="mt-1 text-sm font-medium text-slate-950">
               {documentSummary.uploaded} caricati · {documentSummary.paperDelivery} cartacei ·{" "}
               {documentSummary.missing} mancanti
@@ -173,8 +188,8 @@ export function PublicTeamRegistrationManagePage({
               alla partecipazione al torneo.
             </p>
             <p>
-              Dopo il download puoi caricare il documento compilato nella sezione giocatori qui
-              sotto.
+              Il modulo privacy / GDPR va caricato una sola volta per la squadra nella sezione del
+              capitano. I moduli di esonero vanno caricati uno per ciascun giocatore.
             </p>
           </div>
         </div>
@@ -204,16 +219,50 @@ export function PublicTeamRegistrationManagePage({
       <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Documenti giocatori
+            Documento privacy / GDPR del capitano
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+            Documento richiesto una sola volta per la squadra
+          </h2>
+          <div className="mt-2 grid gap-2 text-sm leading-6 text-slate-600">
+            <p>
+              Carica il modulo privacy / GDPR firmato dal capitano. Questo documento &egrave;
+              richiesto una sola volta per l&apos;intera iscrizione della squadra.
+            </p>
+            <p>
+              Sono accettati PDF, JPG e PNG fino a {TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL}.
+            </p>
+            <p>
+              Se il modulo verr&agrave; consegnato a mano, seleziona Consegna cartacea.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          <PrivateManageCaptainGdprDocumentCard
+            documentsEditable={documentsEditable}
+            feedback={gdprFeedback}
+            registration={registration}
+            token={token}
+          />
+        </div>
+      </section>
+
+      <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Esonero responsabilità / infortuni giocatore
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
             {documentSectionTitle}
           </h2>
           <div className="mt-2 grid gap-2 text-sm leading-6 text-slate-600">
-            <p>Carica il documento compilato per ogni giocatore.</p>
+            <p>Carica un documento per ogni giocatore della rosa.</p>
             <p>
               Sono accettati PDF, JPG e PNG fino a {TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL}.
             </p>
+            <p>I giocatori maggiorenni usano il modulo adulti.</p>
+            <p>I giocatori minorenni usano il modulo minori firmato da genitore o tutore.</p>
             <p>
               Se il modulo verr&agrave; consegnato a mano, seleziona Consegna cartacea.
             </p>

@@ -3,14 +3,15 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 
 import {
-  markTeamRegistrationPlayerPaperDeliveryAction,
-  uploadTeamRegistrationPlayerDocumentAction,
+  markTeamRegistrationGdprPaperDeliveryAction,
+  uploadTeamRegistrationGdprDocumentAction,
 } from "@/features/team-registrations/server/team-registration-document-actions";
-import type { TeamRegistrationRosterPlayer } from "@/features/team-registrations/types/team-registration.types";
+import type { TeamRegistrationManageDetail } from "@/features/team-registrations/types/team-registration.types";
 import {
   TEAM_REGISTRATION_PLAYER_DOCUMENT_ACCEPT,
   TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL,
   formatTeamRegistrationDocumentSize,
+  getTeamRegistrationGdprDocumentStatus,
   getTeamRegistrationPlayerDocumentValidationError,
   teamRegistrationPlayerDocumentStatusBadgeClassNames,
   teamRegistrationPlayerDocumentStatusLabels,
@@ -18,23 +19,32 @@ import {
 import type { DashboardFeedback } from "@/lib/dashboard-feedback";
 import { formatDateTimeLabel } from "@/lib/format-date";
 
-type PrivateManagePlayerDocumentCardProps = {
+type PrivateManageCaptainGdprDocumentCardProps = {
   documentsEditable: boolean;
   feedback: DashboardFeedback | null;
-  player: TeamRegistrationRosterPlayer;
+  registration: Pick<
+    TeamRegistrationManageDetail,
+    | "captainFirstName"
+    | "captainLastName"
+    | "gdprDocumentFileName"
+    | "gdprDocumentSizeBytes"
+    | "gdprDocumentUploadedAt"
+    | "gdprDocumentFilePath"
+    | "gdprPaperDeliveryMarkedAt"
+    | "tournamentSlug"
+  >;
   token: string;
-  tournamentSlug: string;
 };
 
 type PendingAction = "upload" | "paper-delivery" | null;
 
-function getRowFeedbackTitle(feedback: DashboardFeedback | null) {
+function getCardFeedbackTitle(feedback: DashboardFeedback | null) {
   if (!feedback) {
     return null;
   }
 
   if (feedback.type === "success" && feedback.documentAction === "upload") {
-    return "Documento caricato";
+    return "Documento GDPR caricato";
   }
 
   if (feedback.type === "success" && feedback.documentAction === "paper-delivery") {
@@ -48,20 +58,20 @@ function getRowFeedbackTitle(feedback: DashboardFeedback | null) {
   return "Caricamento non riuscito";
 }
 
-export function PrivateManagePlayerDocumentCard({
+export function PrivateManageCaptainGdprDocumentCard({
   documentsEditable,
   feedback,
-  player,
+  registration,
   token,
-  tournamentSlug,
-}: PrivateManagePlayerDocumentCardProps) {
+}: PrivateManageCaptainGdprDocumentCardProps) {
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const status = getTeamRegistrationGdprDocumentStatus(registration);
   const isPending = pendingAction !== null;
-  const rowFeedbackTitle = getRowFeedbackTitle(feedback);
+  const feedbackTitle = getCardFeedbackTitle(feedback);
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const nextFile = event.target.files?.[0] ?? null;
@@ -111,51 +121,47 @@ export function PrivateManagePlayerDocumentCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="font-medium text-slate-950">
-            {player.firstName} {player.lastName}
+            {registration.captainFirstName} {registration.captainLastName}
           </p>
-          <p className="text-slate-500">{player.role ?? "Ruolo non indicato"}</p>
           <p className="mt-2 text-xs uppercase tracking-[0.16em] text-slate-500">
-            Giocatore {player.sortOrder + 1}
+            Documento richiesto una sola volta per la squadra
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full border border-slate-300 px-3 py-1 font-semibold text-slate-700">
-            #{player.jerseyNumber}
-          </span>
-          <span
-            className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${teamRegistrationPlayerDocumentStatusBadgeClassNames[player.documentStatus]}`}
-          >
-            {teamRegistrationPlayerDocumentStatusLabels[player.documentStatus]}
-          </span>
-        </div>
+        <span
+          className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${teamRegistrationPlayerDocumentStatusBadgeClassNames[status]}`}
+        >
+          {teamRegistrationPlayerDocumentStatusLabels[status]}
+        </span>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
           Stato documento
         </p>
-        {player.documentStatus === "UPLOADED" ? (
+        {status === "UPLOADED" ? (
           <p className="mt-2 leading-6 text-slate-700">
             File caricato:{" "}
             <span className="font-medium text-slate-900">
-              {player.documentFileName ?? "Documento"}
+              {registration.gdprDocumentFileName ?? "Documento GDPR"}
             </span>
-            {player.documentUploadedAt ? ` · ${formatDateTimeLabel(player.documentUploadedAt)}` : ""}
-            {formatTeamRegistrationDocumentSize(player.documentSizeBytes)
-              ? ` · ${formatTeamRegistrationDocumentSize(player.documentSizeBytes)}`
+            {registration.gdprDocumentUploadedAt
+              ? ` · ${formatDateTimeLabel(registration.gdprDocumentUploadedAt)}`
+              : ""}
+            {formatTeamRegistrationDocumentSize(registration.gdprDocumentSizeBytes)
+              ? ` · ${formatTeamRegistrationDocumentSize(registration.gdprDocumentSizeBytes)}`
               : ""}
           </p>
-        ) : player.documentStatus === "PAPER_DELIVERY" ? (
+        ) : status === "PAPER_DELIVERY" ? (
           <p className="mt-2 leading-6 text-slate-700">
             Consegna cartacea registrata
-            {player.documentMarkedPaperAt
-              ? ` il ${formatDateTimeLabel(player.documentMarkedPaperAt)}`
+            {registration.gdprPaperDeliveryMarkedAt
+              ? ` il ${formatDateTimeLabel(registration.gdprPaperDeliveryMarkedAt)}`
               : ""}
             .
           </p>
         ) : (
           <p className="mt-2 leading-6 text-slate-700">
-            Nessun esonero responsabilità / infortuni registrato per questo giocatore.
+            Nessun documento privacy / GDPR registrato per il capitano.
           </p>
         )}
       </div>
@@ -168,9 +174,7 @@ export function PrivateManagePlayerDocumentCard({
               : "border-rose-200 bg-rose-50 text-rose-900"
           }`}
         >
-          {rowFeedbackTitle ? (
-            <p className="text-sm font-semibold">{rowFeedbackTitle}</p>
-          ) : null}
+          {feedbackTitle ? <p className="text-sm font-semibold">{feedbackTitle}</p> : null}
           <p className="mt-1 text-sm leading-6">{feedback.message}</p>
         </div>
       ) : null}
@@ -185,18 +189,15 @@ export function PrivateManagePlayerDocumentCard({
       {documentsEditable ? (
         <div className="grid gap-3 border-t border-slate-200 pt-4">
           <form
-            action={uploadTeamRegistrationPlayerDocumentAction}
+            action={uploadTeamRegistrationGdprDocumentAction}
             className="grid gap-3"
             onSubmit={handleUploadSubmit}
           >
-            <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
+            <input type="hidden" name="tournamentSlug" value={registration.tournamentSlug} />
             <input type="hidden" name="token" value={token} />
-            <input type="hidden" name="playerId" value={player.id} />
             <label className="grid gap-2">
               <span className="text-sm font-medium text-slate-700">
-                {player.documentStatus === "UPLOADED"
-                  ? "Sostituisci documento giocatore"
-                  : "Carica documento giocatore"}
+                {status === "UPLOADED" ? "Sostituisci documento GDPR" : "Carica documento GDPR"}
               </span>
               <input
                 ref={fileInputRef}
@@ -211,7 +212,9 @@ export function PrivateManagePlayerDocumentCard({
             <div className="rounded-2xl bg-slate-100 px-4 py-3 text-xs leading-5 text-slate-600">
               <p>Formati accettati: PDF, JPG, PNG.</p>
               <p>Dimensione massima: {TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL}.</p>
-              {selectedFileName ? <p className="mt-1 font-medium text-slate-900">{selectedFileName}</p> : null}
+              {selectedFileName ? (
+                <p className="mt-1 font-medium text-slate-900">{selectedFileName}</p>
+              ) : null}
             </div>
             <button
               type="submit"
@@ -221,20 +224,19 @@ export function PrivateManagePlayerDocumentCard({
             >
               {pendingAction === "upload"
                 ? "Caricamento…"
-                : player.documentStatus === "UPLOADED"
+                : status === "UPLOADED"
                   ? "Aggiorna file"
                   : "Carica file"}
             </button>
           </form>
 
           <form
-            action={markTeamRegistrationPlayerPaperDeliveryAction}
+            action={markTeamRegistrationGdprPaperDeliveryAction}
             className="grid gap-3"
             onSubmit={handlePaperSubmit}
           >
-            <input type="hidden" name="tournamentSlug" value={tournamentSlug} />
+            <input type="hidden" name="tournamentSlug" value={registration.tournamentSlug} />
             <input type="hidden" name="token" value={token} />
-            <input type="hidden" name="playerId" value={player.id} />
             <button
               type="submit"
               disabled={isPending}

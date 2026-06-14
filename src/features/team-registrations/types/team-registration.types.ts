@@ -8,6 +8,7 @@ export const TEAM_REGISTRATION_PLAYER_DOCUMENT_STATUS_VALUES = [
 export type TeamRegistrationStatusValue = (typeof TEAM_REGISTRATION_STATUS_VALUES)[number];
 export type TeamRegistrationPlayerDocumentStatusValue =
   (typeof TEAM_REGISTRATION_PLAYER_DOCUMENT_STATUS_VALUES)[number];
+export type TeamRegistrationDocumentStatusValue = TeamRegistrationPlayerDocumentStatusValue;
 
 export type TeamRegistrationPlayerInput = {
   firstName: string;
@@ -38,6 +39,12 @@ export type TeamRegistrationSummary = {
   captainPhone: string;
   teamName: string;
   notes: string | null;
+  gdprDocumentFilePath: string | null;
+  gdprDocumentFileName: string | null;
+  gdprDocumentMimeType: string | null;
+  gdprDocumentSizeBytes: number | null;
+  gdprDocumentUploadedAt: Date | null;
+  gdprPaperDeliveryMarkedAt: Date | null;
   status: TeamRegistrationStatusValue;
   reviewedAt: Date | null;
   reviewedByUserId: string | null;

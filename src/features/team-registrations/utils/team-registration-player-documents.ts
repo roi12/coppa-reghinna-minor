@@ -1,4 +1,5 @@
 import type {
+  TeamRegistrationDocumentStatusValue,
   TeamRegistrationPlayerDocumentStatusValue,
   TeamRegistrationRosterPlayer,
 } from "@/features/team-registrations/types/team-registration.types";
@@ -55,6 +56,22 @@ export const teamRegistrationPlayerDocumentStatusBadgeClassNames: Record<
   UPLOADED: "bg-emerald-100 text-emerald-800",
   PAPER_DELIVERY: "bg-amber-100 text-amber-900",
 };
+
+export function getTeamRegistrationGdprDocumentStatus(document: {
+  gdprDocumentFilePath: string | null;
+  gdprDocumentUploadedAt: Date | null;
+  gdprPaperDeliveryMarkedAt: Date | null;
+}): TeamRegistrationDocumentStatusValue {
+  if (document.gdprDocumentFilePath || document.gdprDocumentUploadedAt) {
+    return "UPLOADED";
+  }
+
+  if (document.gdprPaperDeliveryMarkedAt) {
+    return "PAPER_DELIVERY";
+  }
+
+  return "MISSING";
+}
 
 export function summarizeTeamRegistrationPlayerDocuments(
   players: TeamRegistrationRosterPlayer[],

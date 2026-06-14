@@ -589,6 +589,7 @@ export async function deleteOrRemoveTeamRegistrationAction(formData: FormData) {
           id: true,
           tournamentId: true,
           teamId: true,
+          gdprDocumentFilePath: true,
           status: true,
           tournament: {
             select: {
@@ -610,6 +611,10 @@ export async function deleteOrRemoveTeamRegistrationAction(formData: FormData) {
       documentFilePathsToDelete = registration.players
         .map((player) => player.documentFilePath)
         .filter((documentFilePath): documentFilePath is string => Boolean(documentFilePath));
+
+      if (registration.gdprDocumentFilePath) {
+        documentFilePathsToDelete.push(registration.gdprDocumentFilePath);
+      }
 
       if (registration.status === "PENDING" || registration.status === "REJECTED") {
         await transaction.teamRegistration.delete({
