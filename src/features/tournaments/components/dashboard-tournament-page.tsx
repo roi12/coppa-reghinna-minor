@@ -59,6 +59,32 @@ type DashboardTournamentPageProps = {
   feedback: DashboardFeedback | null;
 };
 
+function getTournamentStatusLabel(status: "DRAFT" | "PUBLISHED" | "COMPLETED") {
+  switch (status) {
+    case "DRAFT":
+      return "Bozza";
+    case "PUBLISHED":
+      return "Pubblicato";
+    case "COMPLETED":
+      return "Concluso";
+  }
+}
+
+function getStepStatusLabel(status: "BLOCKED" | "INCOMPLETE" | "COMPLETE" | "LOCKED" | "INVALID") {
+  switch (status) {
+    case "BLOCKED":
+      return "Bloccato";
+    case "INCOMPLETE":
+      return "Incompleto";
+    case "COMPLETE":
+      return "Completo";
+    case "LOCKED":
+      return "Bloccato";
+    case "INVALID":
+      return "Non valido";
+  }
+}
+
 export async function DashboardTournamentPage({
   slug,
   feedback,
@@ -152,7 +178,7 @@ export async function DashboardTournamentPage({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
-            Tournament Workspace
+            Area torneo
           </p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight">{tournament.name}</h2>
           <p className="mt-2 text-sm text-slate-600">
@@ -165,13 +191,13 @@ export async function DashboardTournamentPage({
             href="/dashboard"
             className="rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
           >
-            Dashboard
+            Torna alla dashboard
           </Link>
           <Link
             href={`/tournaments/${tournament.slug}`}
             className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white"
           >
-            Open public page
+            Apri pagina pubblica
           </Link>
         </div>
       </div>
@@ -180,35 +206,37 @@ export async function DashboardTournamentPage({
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <article className="rounded-3xl border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Status</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-950">{tournament.status}</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Stato</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-950">
+            {getTournamentStatusLabel(tournament.status)}
+          </p>
         </article>
         <article className="rounded-3xl border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Format</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Formula</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">
             {getTournamentFormatLabel(tournament.format)}
           </p>
         </article>
         <article className="rounded-3xl border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Teams</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Squadre</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{tournament.teamCount}</p>
         </article>
         <article className="rounded-3xl border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Matches</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite</p>
           <p className="mt-2 text-2xl font-semibold text-slate-950">{tournament.matchCount}</p>
         </article>
         <article className="rounded-3xl border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Location</p>
+          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Località</p>
           <p className="mt-2 text-lg font-semibold text-slate-950">
-            {tournament.locationLabel ?? "To be announced"}
+            {tournament.locationLabel ?? "Da definire"}
           </p>
         </article>
       </section>
 
       <section className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-        <h3 className="text-xl font-semibold tracking-tight">Tournament details</h3>
+        <h3 className="text-xl font-semibold tracking-tight">Dettagli torneo</h3>
         <p className="mt-2 text-sm text-slate-600">
-          Update the public-facing basics before publishing the tournament.
+          Aggiorna le informazioni pubbliche principali prima della pubblicazione.
         </p>
 
         <form action={updateTournamentAction} className="mt-5 grid gap-5">
@@ -218,7 +246,7 @@ export async function DashboardTournamentPage({
 
           <div className="grid gap-5 md:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Tournament name
+              Nome torneo
               <input
                 name="name"
                 required
@@ -245,7 +273,7 @@ export async function DashboardTournamentPage({
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Season label
+              Etichetta stagione
               <input
                 name="seasonLabel"
                 required
@@ -254,7 +282,7 @@ export async function DashboardTournamentPage({
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Tournament format
+              Formula torneo
               <select
                 name="format"
                 defaultValue={tournament.format}
@@ -267,12 +295,11 @@ export async function DashboardTournamentPage({
                 ))}
               </select>
               <span className="text-xs font-normal leading-5 text-slate-500">
-                Round-robin scheduling is available now. Knockout and combined formats are
-                scaffolded for later phases.
+                Scegli la formula del torneo da usare nella dashboard organizzatori e nelle pagine pubbliche.
               </span>
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Location
+              Località
               <input
                 name="locationLabel"
                 defaultValue={tournament.locationLabel ?? ""}
@@ -280,19 +307,19 @@ export async function DashboardTournamentPage({
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Status
+              Stato
               <select
                 name="status"
                 defaultValue={tournament.status}
                 className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
               >
-                <option value="DRAFT">Draft</option>
-                <option value="PUBLISHED">Published</option>
-                <option value="COMPLETED">Completed</option>
+                <option value="DRAFT">Bozza</option>
+                <option value="PUBLISHED">Pubblicato</option>
+                <option value="COMPLETED">Concluso</option>
               </select>
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Start date
+              Data inizio
               <input
                 type="date"
                 name="startsAt"
@@ -301,7 +328,7 @@ export async function DashboardTournamentPage({
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              End date
+              Data fine
               <input
                 type="date"
                 name="endsAt"
@@ -315,7 +342,7 @@ export async function DashboardTournamentPage({
             type="submit"
             className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
           >
-            Save tournament details
+            Salva dettagli torneo
           </button>
         </form>
       </section>
@@ -368,28 +395,28 @@ export async function DashboardTournamentPage({
           <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h3 className="text-xl font-semibold tracking-tight">Public visibility</h3>
+                <h3 className="text-xl font-semibold tracking-tight">Visibilità pubblica</h3>
                 <p className="mt-2 text-sm text-slate-600">
-                  Dashboard users always see every stage. Public pages can keep the final phase hidden until you decide to reveal it.
+                  In dashboard vedi sempre tutte le fasi. Le pagine pubbliche possono nascondere la fase finale finché non decidi di mostrarla.
                 </p>
               </div>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Group stage</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Fase a gironi</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">
-                  {stageVisibility.groupStageIsPublic === false ? "Hidden" : "Public"}
+                  {stageVisibility.groupStageIsPublic === false ? "Nascosta" : "Pubblica"}
                 </p>
               </article>
               <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Final phase</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Fase finale</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">
                   {stageVisibility.knockoutStageIsPublic === null
-                    ? "Not configured"
+                    ? "Non configurata"
                     : stageVisibility.knockoutStageIsPublic
-                      ? "Public"
-                      : "Hidden"}
+                      ? "Pubblica"
+                      : "Nascosta"}
                 </p>
               </article>
             </div>
@@ -406,8 +433,8 @@ export async function DashboardTournamentPage({
 
                 <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                   {stageVisibility.knockoutStageIsPublic
-                    ? "The quarter-finals, semi-finals, and final are currently visible on public tournament pages."
-                    : "The quarter-finals, semi-finals, and final are currently hidden on public tournament pages."}
+                    ? "Quarti, semifinali e finale sono attualmente visibili nelle pagine pubbliche del torneo."
+                    : "Quarti, semifinali e finale sono attualmente nascosti nelle pagine pubbliche del torneo."}
                 </p>
 
                 <button
@@ -415,13 +442,13 @@ export async function DashboardTournamentPage({
                   className="w-fit rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-900"
                 >
                   {stageVisibility.knockoutStageIsPublic
-                    ? "Hide final phase publicly"
-                    : "Show final phase publicly"}
+                    ? "Nascondi pubblicamente la fase finale"
+                    : "Mostra pubblicamente la fase finale"}
                 </button>
               </form>
             ) : (
               <p className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                Save a knockout configuration before changing final-phase visibility.
+                Salva prima una configurazione con fase finale per poter gestire la visibilità pubblica.
               </p>
             )}
           </article>
@@ -449,11 +476,10 @@ export async function DashboardTournamentPage({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h3 className="text-xl font-semibold tracking-tight">
-                  Step 3 · Generate competition structure
+                  3. Generazione calendario e struttura
                 </h3>
                 <p className="mt-2 text-sm text-slate-600">
-                  Create stages, group fixtures, and knockout dependencies only when the persisted
-                  tournament setup is complete and valid.
+                  Genera fasi, partite dei gironi e incroci della fase finale solo quando la configurazione salvata è completa e valida.
                 </p>
               </div>
               <span
@@ -463,31 +489,31 @@ export async function DashboardTournamentPage({
                     : "bg-amber-100 text-amber-800"
                 }`}
               >
-                Ready to generate: {setupState.structure.readyToGenerate ? "Yes" : "No"}
+                Pronto alla generazione: {setupState.structure.readyToGenerate ? "Sì" : "No"}
               </span>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
               <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Generated matches</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite generate</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">
                   {setupState.structure.generatedMatchCount} / {setupState.structure.expectedMatchCount}
                 </p>
               </article>
               <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Stages</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Fasi</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">
                   {setupState.structure.existingStageCount} / {setupState.structure.expectedStageCount}
                 </p>
               </article>
               <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Schedule slots</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Slot orari</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">
                   {setupState.structure.configuredSlotCount} / {setupState.structure.expectedSlotCount}
                 </p>
               </article>
               <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Legacy matches</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite legacy</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">{legacyMatches.length}</p>
               </article>
             </div>
@@ -516,17 +542,17 @@ export async function DashboardTournamentPage({
                 <input type="hidden" name="tournamentSlug" value={tournament.slug} />
                 <div>
                   <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-rose-700">
-                    Delete managed structure
+                    Elimina struttura generata
                   </h4>
                   <p className="mt-2 text-sm text-rose-900">
-                    Removes only generated scheduled matches. Completed, live, and legacy matches are protected.
+                    Rimuove solo le partite generate e non concluse. Partite finali, live e legacy restano protette.
                   </p>
                 </div>
                 <button
                   type="submit"
                   className="w-full rounded-full border border-rose-300 bg-white px-5 py-3 text-sm font-medium text-rose-700 sm:w-fit"
                 >
-                  Delete generated structure
+                  Elimina struttura generata
                 </button>
               </form>
             </div>
@@ -534,9 +560,9 @@ export async function DashboardTournamentPage({
             <div className="mt-8 border-t border-slate-200 pt-8">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <h3 className="text-xl font-semibold tracking-tight">Step 4 · Schedule calendar</h3>
+                  <h3 className="text-xl font-semibold tracking-tight">4. Programmazione calendario</h3>
                   <p className="mt-2 text-sm text-slate-600">
-                    Assign dates and kickoff times only after the competition structure has been generated.
+                    Assegna date e orari solo dopo la generazione della struttura del torneo.
                   </p>
                 </div>
                 <span
@@ -548,19 +574,19 @@ export async function DashboardTournamentPage({
                         : "bg-slate-200 text-slate-700"
                   }`}
                 >
-                  {setupState.calendar.status}
+                  {getStepStatusLabel(setupState.calendar.status)}
                 </span>
               </div>
 
               <div className="mt-5 grid gap-4 sm:grid-cols-2">
                 <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Generated matches</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite generate</p>
                   <p className="mt-1 text-lg font-semibold text-slate-950">
                     {setupState.calendar.generatedMatchCount} / {setupState.calendar.expectedMatchCount}
                   </p>
                 </article>
                 <article className="rounded-2xl bg-slate-50 px-4 py-3">
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Scheduled matches</p>
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite programmate</p>
                   <p className="mt-1 text-lg font-semibold text-slate-950">
                     {setupState.calendar.scheduledMatchCount} / {setupState.calendar.expectedMatchCount}
                   </p>
@@ -584,17 +610,17 @@ export async function DashboardTournamentPage({
                   >
                     <div>
                       <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        Reschedule calendar
+                        Ripianifica calendario
                       </h4>
                       <p className="mt-2 text-sm text-slate-600">
-                        Reassign dates and times using the saved start date, slot list, and rest rules.
+                        Ricalcola date e orari usando data iniziale, slot salvati e regole di riposo.
                       </p>
                     </div>
                     <button
                       type="submit"
                       className="w-full rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 sm:w-fit"
                     >
-                      Reschedule generated matches
+                      Ripianifica partite generate
                     </button>
                   </fieldset>
                 </form>
@@ -608,18 +634,17 @@ export async function DashboardTournamentPage({
                     <input type="hidden" name="tournamentSlug" value={tournament.slug} />
                     <div>
                       <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-                        Resolve qualifiers
+                        Risolvi qualificazioni
                       </h4>
                       <p className="mt-2 text-sm text-slate-600">
-                        Fills knockout participants from final group standings and completed upstream
-                        matches without creating fake teams.
+                        Compila la fase finale usando le classifiche definitive e i risultati già conclusi, senza creare squadre fittizie.
                       </p>
                     </div>
                     <button
                       type="submit"
                       className="w-full rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 sm:w-fit"
                     >
-                      Resolve knockout participants
+                      Aggiorna partecipanti fase finale
                     </button>
                   </form>
                 ) : null}
@@ -638,14 +663,14 @@ export async function DashboardTournamentPage({
           </article>
 
           <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xl font-semibold tracking-tight">Create manual match</h3>
+            <h3 className="text-xl font-semibold tracking-tight">Partita manuale</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Add fixtures manually with participating tournament teams.
+              Aggiungi manualmente una partita tra due squadre già inserite nel torneo.
             </p>
 
             {tournamentTeams.length < 2 ? (
               <p className="mt-5 text-sm text-slate-600">
-                At least two tournament teams are required before a match can be scheduled.
+                Servono almeno due squadre del torneo prima di poter creare una partita manuale.
               </p>
             ) : (
               <form action={createTournamentMatchAction} className="mt-5 grid gap-4">
@@ -653,7 +678,7 @@ export async function DashboardTournamentPage({
                 <input type="hidden" name="tournamentSlug" value={tournament.slug} />
                 <div className="grid gap-4 md:grid-cols-2">
                   <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Home team
+                    Squadra casa
                     <select
                       name="homeTeamId"
                       required
@@ -668,7 +693,7 @@ export async function DashboardTournamentPage({
                     </select>
                   </label>
                   <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Away team
+                    Squadra ospite
                     <select
                       name="awayTeamId"
                       required
@@ -683,15 +708,15 @@ export async function DashboardTournamentPage({
                     </select>
                   </label>
                   <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Round label
+                    Etichetta turno
                     <input
                       name="roundLabel"
                       className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      placeholder="Round 3"
+                      placeholder="3ª giornata"
                     />
                   </label>
                   <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Kickoff
+                    Data e ora
                     <input
                       type="datetime-local"
                       name="startsAt"
@@ -700,11 +725,11 @@ export async function DashboardTournamentPage({
                     />
                   </label>
                   <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">
-                    Location
+                    Campo / località
                     <input
                       name="locationLabel"
                       className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      placeholder="Harbor Main Field"
+                      placeholder="Campo principale"
                     />
                   </label>
                 </div>
@@ -712,7 +737,7 @@ export async function DashboardTournamentPage({
                   type="submit"
                   className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
                 >
-                  Create match
+                  Crea partita
                 </button>
               </form>
             )}
@@ -722,12 +747,12 @@ export async function DashboardTournamentPage({
         <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-xl font-semibold tracking-tight">Step 5 · Results / standings</h3>
+              <h3 className="text-xl font-semibold tracking-tight">5. Gestione risultati</h3>
               <p className="mt-2 text-sm text-slate-600">
-                Update match status, enter scores, and publish completed results only after matches exist.
+                Aggiorna stato e punteggi delle partite solo dopo la generazione del calendario.
               </p>
             </div>
-            <span className="text-sm text-slate-500">{matches.length} matches</span>
+            <span className="text-sm text-slate-500">{matches.length} partite</span>
           </div>
 
           {!setupState.results.isActive ? (
@@ -745,12 +770,12 @@ export async function DashboardTournamentPage({
           <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <h3 className="text-xl font-semibold tracking-tight">Team registrations</h3>
+                <h3 className="text-xl font-semibold tracking-tight">Iscrizioni squadre</h3>
                 <p className="mt-2 text-sm text-slate-600">
-                  Review captain-submitted squads and decide whether they should become real teams.
+                  Controlla le iscrizioni inviate dai capitani e approva le squadre da trasformare in partecipanti reali.
                 </p>
               </div>
-              <span className="text-sm text-slate-500">{registrations.length} entries</span>
+              <span className="text-sm text-slate-500">{registrations.length} richieste</span>
             </div>
             <DashboardTeamRegistrationsPanel
               manageLinkReveal={manageLinkReveal}
@@ -760,21 +785,21 @@ export async function DashboardTournamentPage({
           </article>
 
           <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xl font-semibold tracking-tight">Add existing team</h3>
+            <h3 className="text-xl font-semibold tracking-tight">Aggiungi squadra esistente</h3>
             <p className="mt-2 text-sm text-slate-600">
-              Reuse organization teams that are not yet linked to this tournament.
+              Riutilizza una squadra dell&apos;organizzazione non ancora collegata a questo torneo.
             </p>
 
             {availableOrganizationTeams.length === 0 ? (
               <p className="mt-4 text-sm text-slate-600">
-                No reusable teams are available. Create a new tournament team below.
+                Non ci sono squadre riutilizzabili. Puoi crearne una nuova qui sotto.
               </p>
             ) : (
               <form action={assignExistingTeamToTournamentAction} className="mt-5 grid gap-4">
                 <input type="hidden" name="tournamentId" value={tournament.id} />
                 <input type="hidden" name="tournamentSlug" value={tournament.slug} />
                 <label className="grid gap-2 text-sm font-medium text-slate-700">
-                  Organization team
+                  Squadra organizzazione
                   <select
                     name="teamId"
                     required
@@ -792,16 +817,16 @@ export async function DashboardTournamentPage({
                   type="submit"
                   className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
                 >
-                  Add team to tournament
+                  Aggiungi squadra al torneo
                 </button>
               </form>
             )}
           </article>
 
           <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xl font-semibold tracking-tight">Create new team</h3>
+            <h3 className="text-xl font-semibold tracking-tight">Crea nuova squadra</h3>
             <p className="mt-2 text-sm text-slate-600">
-              New teams are created in the organization and immediately attached to this tournament.
+              Le nuove squadre vengono create nell&apos;organizzazione e collegate subito al torneo.
             </p>
 
             <form action={createTournamentTeamAction} className="mt-5 grid gap-4">
@@ -809,12 +834,12 @@ export async function DashboardTournamentPage({
               <input type="hidden" name="tournamentId" value={tournament.id} />
               <input type="hidden" name="tournamentSlug" value={tournament.slug} />
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Team name
+                Nome squadra
                 <input
                   name="name"
                   required
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="Marina Athletic"
+                  placeholder="Costa Azzurra"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
@@ -823,14 +848,14 @@ export async function DashboardTournamentPage({
                   name="slug"
                   required
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="marina-athletic"
+                  placeholder="costa-azzurra"
                 />
               </label>
               <button
                 type="submit"
                 className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
               >
-                Create and add team
+                Crea e aggiungi squadra
               </button>
             </form>
           </article>
@@ -839,17 +864,17 @@ export async function DashboardTournamentPage({
         <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-xl font-semibold tracking-tight">Tournament teams</h3>
+              <h3 className="text-xl font-semibold tracking-tight">Squadre del torneo</h3>
               <p className="mt-2 text-sm text-slate-600">
-                Manage participating teams and add players to each roster.
+                Gestisci le squadre partecipanti e completa le rose con i giocatori.
               </p>
             </div>
-            <span className="text-sm text-slate-500">{tournamentTeams.length} teams</span>
+            <span className="text-sm text-slate-500">{tournamentTeams.length} squadre</span>
           </div>
 
           {rosters.length === 0 ? (
             <p className="mt-5 text-sm text-slate-600">
-              No teams are assigned yet. Add or create a team to start building the rosters.
+              Non ci sono ancora squadre assegnate. Aggiungi o crea una squadra per iniziare.
             </p>
           ) : (
             <div className="mt-5 grid gap-4">
@@ -858,18 +883,18 @@ export async function DashboardTournamentPage({
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                        {team.seed ? `Seed ${team.seed}` : "Tournament team"}
+                        {team.seed ? `Testa di serie ${team.seed}` : "Squadra del torneo"}
                       </p>
                       <h4 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">
                         {team.name}
                       </h4>
                     </div>
-                    <span className="text-sm text-slate-500">{players.length} players</span>
+                    <span className="text-sm text-slate-500">{players.length} giocatori</span>
                   </div>
 
                   <div className="mt-4 grid gap-2">
                     {players.length === 0 ? (
-                      <p className="text-sm text-slate-600">No players added yet.</p>
+                      <p className="text-sm text-slate-600">Nessun giocatore inserito.</p>
                     ) : (
                       players.map((player) => (
                         <div
@@ -898,7 +923,7 @@ export async function DashboardTournamentPage({
                     <input type="hidden" name="tournamentSlug" value={tournament.slug} />
                     <div className="grid gap-4 md:grid-cols-2">
                       <label className="grid gap-2 text-sm font-medium text-slate-700">
-                        First name
+                        Nome
                         <input
                           name="firstName"
                           required
@@ -906,7 +931,7 @@ export async function DashboardTournamentPage({
                         />
                       </label>
                       <label className="grid gap-2 text-sm font-medium text-slate-700">
-                        Last name
+                        Cognome
                         <input
                           name="lastName"
                           required
@@ -914,14 +939,14 @@ export async function DashboardTournamentPage({
                         />
                       </label>
                       <label className="grid gap-2 text-sm font-medium text-slate-700">
-                        Display name
+                        Nome visualizzato
                         <input
                           name="displayName"
                           className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
                         />
                       </label>
                       <label className="grid gap-2 text-sm font-medium text-slate-700">
-                        Jersey number
+                        Numero maglia
                         <input
                           name="jerseyNumber"
                           className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
@@ -932,7 +957,7 @@ export async function DashboardTournamentPage({
                       type="submit"
                       className="w-fit rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700"
                     >
-                      Add player
+                      Aggiungi giocatore
                     </button>
                   </form>
                 </section>

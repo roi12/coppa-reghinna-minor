@@ -53,12 +53,10 @@ export function CaptainManageLinkReveal({
       </h3>
       <div className="mt-3 grid gap-2 leading-6 text-emerald-950/90">
         <p>
-          La tua squadra &egrave; stata registrata correttamente. Ora devi completare la raccolta
-          dei documenti prima che gli organizzatori possano approvare la squadra.
+          La tua squadra è stata registrata correttamente. Da questo momento puoi usare il link privato per gestire documenti e aggiornamenti.
         </p>
         <p>
-          La squadra dovr&agrave; essere verificata dagli organizzatori prima di comparire
-          pubblicamente.
+          La squadra sarà verificata dagli organizzatori prima di comparire pubblicamente.
         </p>
       </div>
 
@@ -67,8 +65,7 @@ export function CaptainManageLinkReveal({
           Link privato della squadra
         </p>
         <p className="mt-2 leading-6 text-slate-700">
-          Questo &egrave; il link privato della squadra. Condividilo solo con i giocatori della
-          tua squadra per permettere loro di caricare i documenti richiesti.
+          Questo è il link privato della squadra. Conservalo e condividilo solo con chi deve gestire documenti e dati della rosa.
         </p>
 
         {reveal ? (
@@ -88,16 +85,13 @@ export function CaptainManageLinkReveal({
                 {copyFeedbackLabel}
               </button>
               <p className="text-xs leading-5 text-slate-500">
-                Conserva questo link: servir&agrave; per completare o aggiornare i documenti della
-                squadra.
+                Conserva questo link: servirà per completare o aggiornare i documenti della squadra.
               </p>
             </div>
           </>
         ) : (
           <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 leading-6 text-slate-700">
-            Il link privato della squadra &egrave; gi&agrave; stato mostrato una volta in questa
-            pagina ed &egrave; stato inviato anche via email al capitano. Se lo hai perso,
-            contatta gli organizzatori per riceverne uno nuovo.
+            Il link privato è già stato mostrato in questa pagina. Se lo hai perso, contatta gli organizzatori per riceverne uno nuovo.
           </p>
         )}
       </div>
@@ -107,11 +101,11 @@ export function CaptainManageLinkReveal({
           Prossimi passi
         </p>
         <ol className="mt-3 grid gap-2 leading-6 text-slate-700">
-          <li>1. Scarica i moduli richiesti.</li>
-          <li>2. Carica il GDPR firmato dal capitano.</li>
-          <li>3. Fai caricare a ogni giocatore il modulo di esonero/infortuni.</li>
-          <li>4. Quando i documenti sono completi, gli organizzatori controlleranno la richiesta.</li>
-          <li>5. La squadra sar&agrave; visibile pubblicamente solo dopo l&apos;approvazione.</li>
+          <li>1. Apri il link privato della squadra.</li>
+          <li>2. Scarica e compila i moduli richiesti.</li>
+          <li>3. Carica il documento privacy del capitano e i documenti dei giocatori.</li>
+          <li>4. Gli organizzatori controlleranno la richiesta dopo il completamento.</li>
+          <li>5. La squadra sarà visibile pubblicamente solo dopo l&apos;approvazione.</li>
         </ol>
       </div>
     </div>

@@ -179,7 +179,7 @@ test("settings are locked when matches exist", () => {
   });
 
   assert.equal(state.settings.status, "LOCKED");
-  assert.match(state.settings.message ?? "", /matches have already been generated/i);
+  assert.match(state.settings.message ?? "", /partite sono gi[aà] state generate/i);
 });
 
 test("group assignment is blocked when settings are incomplete", () => {
@@ -203,7 +203,7 @@ test("generation is blocked when teams are unassigned", () => {
   });
 
   assert.equal(state.structure.readyToGenerate, false);
-  assert(state.structure.issues.some((issue) => issue.includes("Assigned teams: 15 / 16")));
+  assert(state.structure.issues.some((issue) => issue.includes("Squadre assegnate: 15 / 16")));
 });
 
 test("generation is blocked when group slots are invalid", () => {
@@ -215,7 +215,7 @@ test("generation is blocked when group slots are invalid", () => {
   });
 
   assert.equal(state.groups.status, "INVALID");
-  assert(state.groups.issues.some((issue) => issue.includes("Team 13 has no group slot.")));
+  assert(state.groups.issues.some((issue) => issue.includes("squadra Team 13 non ha uno slot")));
   assert.equal(state.structure.readyToGenerate, false);
 });
 

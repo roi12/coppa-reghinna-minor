@@ -21,12 +21,12 @@ export async function DashboardNewTournamentPage({
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="text-sm font-medium uppercase tracking-[0.22em] text-slate-500">
-            Tournament Setup
+            Nuovo torneo
           </p>
-          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Create a tournament</h2>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">Crea un torneo</h2>
         </div>
         <Link href="/dashboard" className="text-sm font-medium text-slate-600 hover:text-slate-950">
-          Back to dashboard
+          Torna alla dashboard
         </Link>
       </div>
 
@@ -34,14 +34,14 @@ export async function DashboardNewTournamentPage({
 
       {organizations.length === 0 ? (
         <section className="rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-600 shadow-sm">
-          No organizations are available. Seed the local database before creating tournaments.
+          Non ci sono ancora organizzazioni disponibili. Crea prima un&apos;organizzazione per aprire un nuovo torneo.
         </section>
       ) : (
         <section className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
           <form action={createTournamentAction} className="grid gap-5">
             <div className="grid gap-5 md:grid-cols-2">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Organization
+                Organizzazione
                 <select
                   name="organizationId"
                   required
@@ -56,12 +56,12 @@ export async function DashboardNewTournamentPage({
                 </select>
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Tournament name
+                Nome torneo
                 <input
                   name="name"
                   required
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="Summer League 2026"
+                  placeholder="Coppa Reghinna Minor 2026"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
@@ -70,7 +70,7 @@ export async function DashboardNewTournamentPage({
                   name="slug"
                   required
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="summer-league-2026"
+                  placeholder="coppa-reghinna-minor-2026"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
@@ -79,20 +79,20 @@ export async function DashboardNewTournamentPage({
                   name="sport"
                   required
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="Football"
+                  placeholder="Calcio a 5"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Season label
+                Etichetta stagione
                 <input
                   name="seasonLabel"
                   required
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="Summer 2026"
+                  placeholder="Estate 2026"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Tournament format
+                Formula torneo
                 <select
                   name="format"
                   required
@@ -106,20 +106,19 @@ export async function DashboardNewTournamentPage({
                   ))}
                 </select>
                 <span className="text-xs font-normal leading-5 text-slate-500">
-                  Round-robin scheduling is available now. Knockout and combined formats are
-                  scaffolded for later phases.
+                  Scegli la formula da usare per impostazioni, gironi, calendario e pagine pubbliche.
                 </span>
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Location
+                Località
                 <input
                   name="locationLabel"
                   className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                  placeholder="Harbor City"
+                  placeholder="Maiori"
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Start date
+                Data inizio
                 <input
                   type="date"
                   name="startsAt"
@@ -127,7 +126,7 @@ export async function DashboardNewTournamentPage({
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                End date
+                Data fine
                 <input
                   type="date"
                   name="endsAt"
@@ -141,10 +140,10 @@ export async function DashboardNewTournamentPage({
                 type="submit"
                 className="rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
               >
-                Create draft tournament
+                Crea torneo in bozza
               </button>
               <p className="text-sm text-slate-500">
-                New tournaments start in draft status until you publish them.
+                I nuovi tornei partono in bozza finché non vengono pubblicati.
               </p>
             </div>
           </form>

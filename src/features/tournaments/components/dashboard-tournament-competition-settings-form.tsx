@@ -165,6 +165,17 @@ function parseOptionalNonNegativeInteger(value: string) {
   return Number.isInteger(parsedValue) && parsedValue >= 0 ? parsedValue : null;
 }
 
+function renderStatusLabel(status: DashboardTournamentCompetitionSettingsFormProps["status"]) {
+  switch (status) {
+    case "COMPLETE":
+      return "Completa";
+    case "INCOMPLETE":
+      return "Incompleta";
+    case "LOCKED":
+      return "Bloccata";
+  }
+}
+
 function buildPreviewSettings(state: CompetitionSettingsFormState): Pick<
   TournamentCompetitionSettingsInput,
   "scheduleMaxMatchesPerDay" | "stages"
@@ -279,7 +290,7 @@ export function DashboardTournamentCompetitionSettingsForm(
     <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-xl font-semibold tracking-tight">Step 1 · Competition settings</h3>
+          <h3 className="text-xl font-semibold tracking-tight">1. Impostazioni torneo</h3>
           <p className="mt-2 text-sm text-slate-600">
             {getTournamentFormatDashboardMessage(formState.format)}
           </p>
@@ -293,7 +304,7 @@ export function DashboardTournamentCompetitionSettingsForm(
                 : "bg-amber-100 text-amber-800"
           }`}
         >
-          {props.status}
+          {renderStatusLabel(props.status)}
         </span>
       </div>
 
@@ -305,7 +316,7 @@ export function DashboardTournamentCompetitionSettingsForm(
 
       {!props.isLocked && props.status === "INCOMPLETE" ? (
         <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
-          Save a complete competition configuration before moving to group assignment.
+          Salva una configurazione completa prima di passare all&apos;assegnazione dei gironi.
         </div>
       ) : null}
 
@@ -316,7 +327,7 @@ export function DashboardTournamentCompetitionSettingsForm(
         <fieldset disabled={props.isLocked} className="grid gap-5 disabled:opacity-60">
           <div className="grid gap-5 xl:grid-cols-2">
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Format type
+              Formula torneo
               <select
                 name="format"
                 value={formState.format}
@@ -337,7 +348,7 @@ export function DashboardTournamentCompetitionSettingsForm(
               </select>
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Expected team count
+              Numero squadre previsto
               <input
                 type="number"
                 name="expectedTeamCount"
@@ -354,7 +365,7 @@ export function DashboardTournamentCompetitionSettingsForm(
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Schedule start date
+              Data di inizio calendario
               <input
                 type="date"
                 name="scheduleStartDate"
@@ -369,7 +380,7 @@ export function DashboardTournamentCompetitionSettingsForm(
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Maximum matches per day
+              Partite massime al giorno
               <input
                 type="number"
                 name="scheduleMaxMatchesPerDay"
@@ -386,7 +397,7 @@ export function DashboardTournamentCompetitionSettingsForm(
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Minimum rest days
+              Giorni minimi di riposo
               <input
                 type="number"
                 name="scheduleMinimumRestDays"
@@ -403,7 +414,7 @@ export function DashboardTournamentCompetitionSettingsForm(
               />
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Daily slot times
+              Orari giornalieri
               <input
                 name="slotTimes"
                 required
@@ -417,11 +428,11 @@ export function DashboardTournamentCompetitionSettingsForm(
                 className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
               />
               <span className="text-xs font-normal text-slate-500">
-                Use comma-separated HH:MM values, for example `22:00, 23:00`.
+                Inserisci gli orari separati da virgola, per esempio `22:00, 23:00`.
               </span>
             </label>
             <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Slot duration (minutes)
+              Durata slot (minuti)
               <input
                 type="number"
                 name="slotDurationMinutes"
@@ -442,7 +453,7 @@ export function DashboardTournamentCompetitionSettingsForm(
           {isGroupedFormat ? (
             <div className="grid gap-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 xl:grid-cols-2">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Group count
+                Numero gironi
                 <input
                   type="number"
                   name="groupCount"
@@ -458,7 +469,7 @@ export function DashboardTournamentCompetitionSettingsForm(
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Teams per group
+                Squadre per girone
                 <input
                   type="number"
                   name="teamsPerGroup"
@@ -474,7 +485,7 @@ export function DashboardTournamentCompetitionSettingsForm(
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Legs
+                Andata/ritorno
                 <input
                   type="number"
                   name="legs"
@@ -490,7 +501,7 @@ export function DashboardTournamentCompetitionSettingsForm(
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Qualifiers per group
+                Qualificate per girone
                 <input
                   type="number"
                   name="qualifiersPerGroup"
@@ -518,7 +529,7 @@ export function DashboardTournamentCompetitionSettingsForm(
           {isKnockoutFormat ? (
             <div className="grid gap-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 xl:grid-cols-2">
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Knockout entry size
+                Squadre in fase finale
                 <input
                   type="number"
                   name="knockoutTeamCount"
@@ -534,7 +545,7 @@ export function DashboardTournamentCompetitionSettingsForm(
                 />
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Starting round
+                Turno iniziale
                 <select
                   name="knockoutRound"
                   value={formState.knockoutRound}
@@ -546,15 +557,15 @@ export function DashboardTournamentCompetitionSettingsForm(
                   }
                   className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
                 >
-                  <option value="ROUND_OF_32">Round of 32</option>
-                  <option value="ROUND_OF_16">Round of 16</option>
-                  <option value="QUARTER_FINAL">Quarter-final</option>
-                  <option value="SEMI_FINAL">Semi-final</option>
-                  <option value="FINAL">Final</option>
+                  <option value="ROUND_OF_32">Sedicesimi</option>
+                  <option value="ROUND_OF_16">Ottavi</option>
+                  <option value="QUARTER_FINAL">Quarti</option>
+                  <option value="SEMI_FINAL">Semifinali</option>
+                  <option value="FINAL">Finale</option>
                 </select>
               </label>
               <label className="grid gap-2 text-sm font-medium text-slate-700">
-                Pairing rule
+                Regola abbinamenti
                 <input
                   name="pairingRule"
                   value={formState.pairingRule}
@@ -579,7 +590,7 @@ export function DashboardTournamentCompetitionSettingsForm(
                     }))
                   }
                 />
-                Include third-place match
+                Includi finale 3° posto
               </label>
             </div>
           ) : (
@@ -593,17 +604,17 @@ export function DashboardTournamentCompetitionSettingsForm(
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <article className="rounded-2xl bg-slate-50 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Groups</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Gironi</p>
               <p className="mt-1 text-lg font-semibold text-slate-950">{competitionPreview.groupCount}</p>
             </article>
             <article className="rounded-2xl bg-slate-50 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Group matches</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite gironi</p>
               <p className="mt-1 text-lg font-semibold text-slate-950">
                 {competitionPreview.groupStageMatchCount}
               </p>
             </article>
             <article className="rounded-2xl bg-slate-50 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Knockout matches</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Partite fase finale</p>
               <p className="mt-1 text-lg font-semibold text-slate-950">
                 {competitionPreview.knockoutRoundCounts.quarterFinals +
                   competitionPreview.knockoutRoundCounts.semiFinals +
@@ -612,7 +623,7 @@ export function DashboardTournamentCompetitionSettingsForm(
               </p>
             </article>
             <article className="rounded-2xl bg-slate-50 px-4 py-3">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Minimum match days</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Giornate minime</p>
               <p className="mt-1 text-lg font-semibold text-slate-950">
                 {competitionPreview.estimatedMinimumMatchDays}
               </p>
@@ -624,15 +635,15 @@ export function DashboardTournamentCompetitionSettingsForm(
               type="submit"
               className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-fit"
             >
-              Save competition settings
+              Salva impostazioni torneo
             </button>
             <p className="text-sm text-slate-500">
-              Preview: {competitionPreview.totalMatchCount} matches total, including{" "}
-              {competitionPreview.knockoutRoundCounts.quarterFinals} quarter-finals,{" "}
-              {competitionPreview.knockoutRoundCounts.semiFinals} semi-finals,{" "}
-              {competitionPreview.knockoutRoundCounts.finals} final
+              Anteprima: {competitionPreview.totalMatchCount} partite totali, con{" "}
+              {competitionPreview.knockoutRoundCounts.quarterFinals} quarti,{" "}
+              {competitionPreview.knockoutRoundCounts.semiFinals} semifinali,{" "}
+              {competitionPreview.knockoutRoundCounts.finals} finale
               {competitionPreview.knockoutRoundCounts.thirdPlaceMatches > 0
-                ? ", and a third-place match."
+                ? " e finale 3° posto."
                 : "."}
             </p>
           </div>

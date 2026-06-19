@@ -20,14 +20,14 @@ export function LoginPage({ currentUser, feedback }: LoginPageProps) {
       <div className="mx-auto grid w-full max-w-5xl gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="rounded-3xl border border-slate-300 bg-white/92 p-8 shadow-sm">
           <p className="text-sm font-medium uppercase tracking-[0.24em] text-slate-500">
-            Accesso organizzazione
+            Area organizzatori
           </p>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Accedi al dashboard.
+            Accedi all&apos;area riservata.
           </h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-slate-600">
-            L&apos;accesso al dashboard è riservato agli account owner e admin. Gli account viewer
-            possono entrare, ma restano limitati alle pagine pubbliche del torneo.
+            Accedi per gestire tornei, iscrizioni, gironi, calendario e risultati. Le pagine
+            pubbliche del torneo restano disponibili anche senza accesso.
           </p>
 
           {showDevLoginHints ? (
@@ -64,7 +64,7 @@ export function LoginPage({ currentUser, feedback }: LoginPageProps) {
         </section>
 
         <section className="rounded-3xl border border-slate-300 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold tracking-tight">Account</h2>
+          <h2 className="text-2xl font-semibold tracking-tight">Accesso</h2>
           <p className="mt-2 text-sm text-slate-600">
             {presentation.helperText}
           </p>
@@ -79,7 +79,7 @@ export function LoginPage({ currentUser, feedback }: LoginPageProps) {
                 <p className="text-sm text-slate-500">Accesso effettuato come</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">{currentUser.name}</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  {currentUser.email} · {currentUser.role.toLowerCase()}
+                  {currentUser.email} · ruolo {currentUser.role.toLowerCase()}
                 </p>
               </div>
 

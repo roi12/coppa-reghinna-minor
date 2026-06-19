@@ -147,7 +147,7 @@ export function PublicTeamRegistrationForm({
             name="notes"
             rows={4}
             className="w-full max-w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
-            placeholder="Dettagli facoltativi per l'organizzazione, come disponibilità orarie o note sulla rosa."
+            placeholder="Eventuali note utili per gli organizzatori."
           />
         </label>
       </section>
@@ -156,8 +156,7 @@ export function PublicTeamRegistrationForm({
         <div className="min-w-0">
           <h2 className="text-xl font-semibold tracking-tight text-slate-950">Rosa squadra</h2>
           <p className="mt-1 text-sm text-slate-600">
-            Inserisci da 5 a 11 giocatori. I numeri maglia devono essere compresi tra 0 e 99 e
-            non possono ripetersi nella stessa squadra.
+            Inserisci almeno 5 giocatori. I numeri di maglia non possono ripetersi nella stessa squadra.
           </p>
         </div>
 
@@ -180,7 +179,7 @@ export function PublicTeamRegistrationForm({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-950">Giocatore {index + 1}</p>
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-500">
-                    Inserimento rosa futsal
+                    Dati giocatore
                   </p>
                 </div>
                 <button
@@ -276,8 +275,7 @@ export function PublicTeamRegistrationForm({
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-slate-600">
-          L’iscrizione resta in attesa finché l’organizzazione non approva la squadra. Il
-          pagamento non avviene online; eventuali istruzioni saranno comunicate separatamente.
+          Dopo l&apos;invio l&apos;iscrizione resterà in attesa di approvazione. Subito dopo riceverai il link privato della squadra.
         </p>
         <button
           type="submit"

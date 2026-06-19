@@ -42,25 +42,25 @@ export async function PublicTournamentOverviewPage({
             {BRAND.appName}
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-            {BRAND.tagline}
+            Tutto il torneo, in un colpo d&apos;occhio
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Questa pagina raccoglie il quadro pubblico del torneo: iscrizioni approvate,
-            calendario, risultati e classifica. Apri le sezioni dedicate per la vista completa.
+            Qui trovi subito calendario, classifica, squadre partecipanti e iscrizioni. Se la fase
+            finale non è ancora pubblica, continuerai a vedere solo la fase a gironi.
           </p>
 
-          <div className="mt-5 flex flex-wrap gap-3">
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
               href={`/tournaments/${slug}/register-team`}
               className={`rounded-full px-4 py-2 text-sm font-medium ${BRAND.classes.primaryButton}`}
             >
-              Registra squadra
+              Iscrivi la tua squadra
             </Link>
             <Link
               href={`/tournaments/${slug}/calendar`}
               className={`rounded-full px-4 py-2 text-sm font-medium ${BRAND.classes.darkButton}`}
             >
-              Calendario completo
+              Calendario
             </Link>
             <Link
               href={`/tournaments/${slug}/teams`}
@@ -75,6 +75,12 @@ export async function PublicTournamentOverviewPage({
               Classifica
             </Link>
           </div>
+
+          {tournament.knockoutStageIsPublic === false ? (
+            <p className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              La fase finale sarà pubblicata dagli organizzatori al momento opportuno.
+            </p>
+          ) : null}
         </article>
 
         <div className="grid grid-cols-2 gap-4">
@@ -134,14 +140,14 @@ export async function PublicTournamentOverviewPage({
                 Quadro partite
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Risultati finali e prossime partite del calendario pubblico del torneo.
+                Ultimi risultati e prossime partite già visibili nella pagina pubblica del torneo.
               </p>
             </div>
             <Link
               href={`/tournaments/${slug}/calendar`}
               className="text-sm font-medium text-slate-700 hover:text-slate-950"
             >
-              Calendario completo
+              Vai al calendario
             </Link>
           </div>
 

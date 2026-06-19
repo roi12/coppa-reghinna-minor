@@ -24,16 +24,15 @@ export function DashboardTournamentGenerationForm({
 
       <div>
         <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
-          Generate structure
+          Generazione struttura
         </h4>
         <p className="mt-2 text-sm text-slate-600">
-          Builds the managed 31-match structure only after the saved settings and group
-          assignments are valid.
+          Crea la struttura gestita del torneo solo quando impostazioni e gironi risultano validi.
         </p>
       </div>
 
       <label className="grid gap-2 text-sm font-medium text-slate-700">
-        Existing match handling
+        Gestione partite esistenti
         <select
           form={formId}
           name="replacementMode"
@@ -41,9 +40,9 @@ export function DashboardTournamentGenerationForm({
           disabled={!isReady}
           className="rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 disabled:cursor-not-allowed disabled:bg-slate-100"
         >
-          <option value="BLOCK_ON_EXISTING">Block if matches already exist</option>
-          <option value="REPLACE_MANAGED_SCHEDULED">Replace generated scheduled matches only</option>
-          <option value="REPLACE_LEGACY_SCHEDULED">Replace legacy scheduled matches only</option>
+          <option value="BLOCK_ON_EXISTING">Blocca se esistono già partite</option>
+          <option value="REPLACE_MANAGED_SCHEDULED">Sostituisci solo le partite generate e non concluse</option>
+          <option value="REPLACE_LEGACY_SCHEDULED">Sostituisci solo le partite legacy non concluse</option>
         </select>
       </label>
 
@@ -53,7 +52,7 @@ export function DashboardTournamentGenerationForm({
         disabled={!isReady}
         className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-slate-400 sm:w-fit"
       >
-        Generate competition structure
+        Genera struttura del torneo
       </button>
     </form>
   );

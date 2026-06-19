@@ -29,10 +29,14 @@ export async function PublicTournamentCalendarPage({
         <article className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
           <h2 className="text-xl font-semibold tracking-tight text-slate-950">Calendario del torneo</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Le partite create automaticamente o inserite a mano sono elencate in ordine
-            cronologico. Gli orari sono mostrati in UTC per mantenere un calendario pubblico
-            coerente.
+            Le partite pubbliche sono elencate in ordine cronologico, con orario di inizio ben visibile
+            per seguire il torneo anche da telefono.
           </p>
+          {tournament.knockoutStageIsPublic === false ? (
+            <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+              La fase finale sarà pubblicata dagli organizzatori dopo la fase a gironi.
+            </p>
+          ) : null}
         </article>
 
         <div className="grid grid-cols-2 gap-4">
@@ -52,7 +56,7 @@ export async function PublicTournamentCalendarPage({
           <div>
             <h3 className="text-lg font-semibold tracking-tight text-slate-950">Tutte le partite</h3>
             <p className="mt-1 text-sm text-slate-600">
-              Partite finali e partite in programma restano nella stessa sequenza temporale.
+              Orari, date e risultati vengono mostrati nella stessa sequenza del calendario pubblico.
             </p>
           </div>
           <span className="text-sm text-slate-500">{matches.length} partite elencate</span>

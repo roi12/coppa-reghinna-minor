@@ -22,8 +22,10 @@ function parsePostgresUrl(value, label) {
     throw new Error(`${label} must point to a local PostgreSQL host.`);
   }
 
-  if (url.pathname.replace(/^\//, "") !== "reghinna_test") {
-    throw new Error(`${label} must point to the reghinna_test database.`);
+  const databaseName = url.pathname.replace(/^\//, "");
+
+  if (databaseName !== "reghinna_local" && databaseName !== "reghinna_test") {
+    throw new Error(`${label} must point to the reghinna_local or reghinna_test database.`);
   }
 
   if (/supabase/i.test(trimmedValue) || /supabase/i.test(url.hostname)) {
@@ -55,6 +57,13 @@ export function assertSafeLocalSeedEnvironment() {
     throw new Error("DATABASE_URL and DIRECT_URL must point to the same local PostgreSQL host and port.");
   }
 
+  const databaseName = databaseUrl.pathname.replace(/^\//, "");
+  const directDatabaseName = directUrl.pathname.replace(/^\//, "");
+
+  if (databaseName !== directDatabaseName) {
+    throw new Error("DATABASE_URL and DIRECT_URL must point to the same local PostgreSQL database.");
+  }
+
   const appUrl = process.env.APP_URL?.trim();
   if (appUrl) {
     const parsedAppUrl = new URL(appUrl);
@@ -67,6 +76,7 @@ export function assertSafeLocalSeedEnvironment() {
   return {
     databaseUrl,
     directUrl,
+    databaseName,
   };
 }
 
@@ -298,7 +308,7 @@ async function createDemoTeams(prisma, organization, tournament) {
 }
 
 async function verifyBaseSeedState(prisma, organizationId, tournamentId) {
-  const [teamCount, tournamentTeamCount, playerCount, matchCount] = await Promise.all([
+  const [teamCount, tournamentTeamCount, playerCount, matchCount, groupCount, stageCount, scheduleSlotCount] = await Promise.all([
     prisma.team.count({
       where: {
         organizationId,
@@ -319,6 +329,21 @@ async function verifyBaseSeedState(prisma, organizationId, tournamentId) {
         tournamentId,
       },
     }),
+    prisma.tournamentGroup.count({
+      where: {
+        tournamentId,
+      },
+    }),
+    prisma.tournamentStage.count({
+      where: {
+        tournamentId,
+      },
+    }),
+    prisma.tournamentScheduleSlot.count({
+      where: {
+        tournamentId,
+      },
+    }),
   ]);
 
   return {
@@ -326,6 +351,9 @@ async function verifyBaseSeedState(prisma, organizationId, tournamentId) {
     tournamentTeamCount,
     playerCount,
     matchCount,
+    groupCount,
+    stageCount,
+    scheduleSlotCount,
   };
 }
 
@@ -373,18 +401,21 @@ export async function seedLocalTournament({ includeDemoData }) {
         counts.teamCount !== 0 ||
         counts.tournamentTeamCount !== 0 ||
         counts.playerCount !== 0 ||
-        counts.matchCount !== 0
+        counts.matchCount !== 0 ||
+        counts.groupCount !== 0 ||
+        counts.stageCount !== 0 ||
+        counts.scheduleSlotCount !== 0
       ) {
         throw new Error(
-          `Base seed verification failed: expected zero teams, tournament-team links, players, and matches but found teams=${counts.teamCount}, tournamentTeams=${counts.tournamentTeamCount}, players=${counts.playerCount}, matches=${counts.matchCount}.`,
+          `Base seed verification failed: expected zero teams, tournament-team links, players, matches, groups, stages, and schedule slots but found teams=${counts.teamCount}, tournamentTeams=${counts.tournamentTeamCount}, players=${counts.playerCount}, matches=${counts.matchCount}, groups=${counts.groupCount}, stages=${counts.stageCount}, scheduleSlots=${counts.scheduleSlotCount}.`,
         );
       }
 
       console.log(
-        `Base seed ready for ${organization.id}/${tournament.id} with zero teams, tournament-team links, players, and matches.`,
+        `Base seed ready for ${organization.id}/${tournament.id} with zero teams, tournament-team links, players, matches, groups, stages, and schedule slots.`,
       );
       console.log(
-        `Verification counts: teams=${counts.teamCount}, tournamentTeams=${counts.tournamentTeamCount}, players=${counts.playerCount}, matches=${counts.matchCount}`,
+        `Verification counts: teams=${counts.teamCount}, tournamentTeams=${counts.tournamentTeamCount}, players=${counts.playerCount}, matches=${counts.matchCount}, groups=${counts.groupCount}, stages=${counts.stageCount}, scheduleSlots=${counts.scheduleSlotCount}`,
       );
     } else {
       console.log(`Seeded organization coppa-reghinna-minor and tournament coppa-reghinna-minor-2026 with demo data.`);

@@ -14,7 +14,7 @@ export function DashboardMatchResultsPanel({
   if (matches.length === 0) {
     return (
       <p className="mt-5 text-sm text-slate-600">
-        No matches have been created for this tournament yet.
+        Non ci sono ancora partite create per questo torneo.
       </p>
     );
   }
@@ -33,7 +33,7 @@ export function DashboardMatchResultsPanel({
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-                  {match.roundLabel ?? "Match"}
+                  {match.roundLabel ?? "Partita"}
                 </p>
                 <p className="mt-1 text-sm text-slate-600">
                   {formatDateTimeLabel(match.startsAt)}
@@ -49,7 +49,7 @@ export function DashboardMatchResultsPanel({
                       : "bg-amber-100 text-amber-800"
                 }`}
               >
-                {isCompleted ? "Completed" : isLive ? "In corso" : "Scheduled"}
+                {isCompleted ? "Finale" : isLive ? "In corso" : "In programma"}
               </span>
             </div>
 
@@ -80,19 +80,19 @@ export function DashboardMatchResultsPanel({
 
               <div className="grid w-full max-w-full min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_minmax(0,0.7fr)_auto] xl:items-end">
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                  Match status
+                  Stato partita
                   <select
                   name="status"
                   defaultValue={match.status}
                   className="w-full max-w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
                 >
-                  <option value="SCHEDULED">Scheduled</option>
+                  <option value="SCHEDULED">In programma</option>
                   <option value="LIVE">In corso</option>
-                  <option value="FINAL">Completed</option>
+                  <option value="FINAL">Finale</option>
                 </select>
               </label>
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                  Home score
+                  Gol squadra casa
                   <input
                     type="number"
                     min="0"
@@ -102,7 +102,7 @@ export function DashboardMatchResultsPanel({
                   />
                 </label>
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                  Away score
+                  Gol squadra ospite
                   <input
                     type="number"
                     min="0"
@@ -115,12 +115,12 @@ export function DashboardMatchResultsPanel({
                   type="submit"
                   className="w-full max-w-full min-w-0 rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white sm:w-fit xl:justify-self-start"
                 >
-                  Save result
+                  Salva risultato
                 </button>
               </div>
 
               <p className="text-sm text-slate-500">
-                Imposta la partita come in corso o completata per registrare il punteggio e aggiornare la vista pubblica.
+                Imposta la partita come in corso o finale per registrare il punteggio e aggiornare la vista pubblica.
               </p>
             </form>
           </section>

@@ -41,6 +41,9 @@ export async function PublicTournamentStandingsPage({
               ? "Ogni girone ha una classifica separata ordinata per punti, differenza reti, gol fatti e nome squadra."
               : "Le squadre sono ordinate per punti, differenza reti, gol fatti e nome squadra."}
           </p>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Legenda: P = partite, V = vittorie, N = pareggi, S = sconfitte, GF = gol fatti, GA = gol subiti, DR = differenza reti, Pt = punti.
+          </p>
         </article>
 
         <div className="grid grid-cols-2 gap-4">

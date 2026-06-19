@@ -298,6 +298,15 @@ Make sure a local PostgreSQL database exists and `DATABASE_URL` points to it, th
 npm run db:push
 ```
 
+Use the local databases like this:
+
+- `reghinna_local`
+  clean local development database
+- `reghinna_test`
+  destructive test and simulation database
+
+`npm run dev` does not seed data automatically. It starts the app on `127.0.0.1` only and shows whatever is already stored in the current local database.
+
 Only run `npm run db:seed`, `npm run db:seed:demo`, or `npm run db:seed:base` when you intentionally want to replace the current local seeded organizations and tournaments. They are not safe as routine verification steps if you need to preserve an existing local Coppa Reghinna Minor dataset.
 
 Start the app:
@@ -308,8 +317,9 @@ npm run dev
 
 Local seed behavior:
 
-- `npm run db:seed:base` loads only the base local records for the Coppa Reghinna Minor tournament
-- `npm run db:seed` and `npm run db:seed:demo` load local demo credentials and sample tournament data
+- `npm run db:seed` loads the clean base local records for the Coppa Reghinna Minor tournament
+- `npm run db:seed:base` does the same explicitly
+- `npm run db:seed:demo` loads the base local records plus the four demo teams, players, and sample matches
 - it creates sample `OWNER`, `ADMIN`, and `VIEWER` accounts
 - it is intended only for local development and QA
 - do **not** run it in production
@@ -321,13 +331,45 @@ npm run db:migrate
 npm run db:seed
 ```
 
-For manual 16-team registration testing, start from the base seed:
+For clean local development on `reghinna_local`, reset safely and reload only the base records:
+
+```bash
+npm run db:reset:local
+```
+
+That reset refuses non-local hosts and only works when the active database is `reghinna_local`.
+
+For manual 16-team registration testing, start from the clean base seed:
 
 ```bash
 npm run db:seed:base
 ```
 
-That leaves the target tournament with zero teams, zero `TournamentTeam` links, zero players, and zero matches, ready for the synthetic registration approvals.
+That leaves the target tournament with:
+
+- 0 teams
+- 0 `TournamentTeam` links
+- 0 players
+- 0 matches
+- 0 groups
+- 0 generated stages
+- 0 schedule slots
+
+ready for synthetic registration approvals or manual setup.
+
+For destructive tournament simulation, use `reghinna_test` instead of `reghinna_local`. Provision the database first if needed:
+
+```bash
+npm run db:test:ensure
+```
+
+Then run the explicit 16-team registration simulation only when you want it:
+
+```bash
+npm run seed:test-registrations
+```
+
+That script is the only path that should create the fake 16 pending registrations used for approval and calendar testing.
 
 ## Database Scripts
 
@@ -340,11 +382,13 @@ That leaves the target tournament with zero teams, zero `TournamentTeam` links, 
 - `npm run db:push`
   Syncs the current schema directly to the database.
 - `npm run db:seed`
-  Loads the local demo seed.
+  Loads the clean local base seed.
 - `npm run db:seed:base`
   Loads only the base local records needed for manual tournament testing.
 - `npm run db:seed:demo`
   Loads the base local records plus the four demo teams, players, and sample matches.
+- `npm run db:reset:local`
+  Resets only `reghinna_local` and re-seeds it with the clean base records.
 - `npm run db:seed:production`
   Loads the minimal branded production baseline.
 

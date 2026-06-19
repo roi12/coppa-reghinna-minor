@@ -65,8 +65,7 @@ export function PublicTeamRegistrationManagePage({
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Questa pagina mostra lo stato dell&apos;iscrizione per il torneo{" "}
               <span className="font-medium text-slate-900">{registration.tournamentName}</span>.
-              La rosa resta in sola lettura, ma dal link privato puoi completare il documento
-              privacy / GDPR del capitano e i documenti dei giocatori finch&eacute;
+              La rosa resta in sola lettura, ma da qui puoi completare i documenti richiesti finché
               l&apos;iscrizione non viene rifiutata.
             </p>
           </div>
@@ -177,19 +176,14 @@ export function PublicTeamRegistrationManagePage({
           </h2>
           <div className="mt-3 grid gap-3 text-sm leading-6 text-slate-600">
             <p>
-              Scarica i moduli qui sotto e compila solo quelli richiesti per la tua squadra.
+              Scarica i moduli qui sotto e compila solo quelli necessari per la tua squadra.
             </p>
             <p>
-              I partecipanti maggiorenni devono usare il modulo per maggiorenni. I partecipanti
-              minorenni devono usare il modulo per minorenni con firma del genitore o del tutore.
+              I maggiorenni usano il modulo per adulti. I minorenni usano il modulo dedicato con
+              firma del genitore o del tutore.
             </p>
             <p>
-              L&apos;informativa privacy / GDPR riguarda il trattamento dei dati personali necessari
-              alla partecipazione al torneo.
-            </p>
-            <p>
-              Il modulo privacy / GDPR va caricato una sola volta per la squadra nella sezione del
-              capitano. I moduli di esonero vanno caricati uno per ciascun giocatore.
+              Il modulo privacy del capitano va caricato una sola volta. I moduli di esonero vanno caricati uno per ogni giocatore.
             </p>
           </div>
         </div>
@@ -226,14 +220,13 @@ export function PublicTeamRegistrationManagePage({
           </h2>
           <div className="mt-2 grid gap-2 text-sm leading-6 text-slate-600">
             <p>
-              Carica il modulo privacy / GDPR firmato dal capitano. Questo documento &egrave;
-              richiesto una sola volta per l&apos;intera iscrizione della squadra.
+              Carica il modulo privacy firmato dal capitano. Questo documento è richiesto una sola volta per l&apos;intera squadra.
             </p>
             <p>
               Sono accettati PDF, JPG e PNG fino a {TEAM_REGISTRATION_PLAYER_DOCUMENT_MAX_SIZE_LABEL}.
             </p>
             <p>
-              Se il modulo verr&agrave; consegnato a mano, seleziona Consegna cartacea.
+              Se consegni il modulo a mano, seleziona Consegna cartacea.
             </p>
           </div>
         </div>
@@ -264,9 +257,9 @@ export function PublicTeamRegistrationManagePage({
             <p>I giocatori maggiorenni usano il modulo adulti.</p>
             <p>I giocatori minorenni usano il modulo minori firmato da genitore o tutore.</p>
             <p>
-              Se il modulo verr&agrave; consegnato a mano, seleziona Consegna cartacea.
+              Se consegni il modulo a mano, seleziona Consegna cartacea.
             </p>
-            <p>Questo link &egrave; riservato alla squadra. Non condividerlo pubblicamente.</p>
+            <p>Questo link è riservato alla squadra. Non condividerlo pubblicamente.</p>
             {registration.status === "APPROVED" ? (
               <p className="font-medium text-emerald-700">
                 L&apos;iscrizione &egrave; approvata, ma puoi ancora completare i documenti dei

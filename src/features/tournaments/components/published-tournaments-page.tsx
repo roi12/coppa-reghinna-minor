@@ -43,8 +43,7 @@ export async function PublishedTournamentsPage() {
 
         {tournaments.length === 0 ? (
           <section className="rounded-3xl border border-dashed border-slate-300 bg-white/80 p-8 text-sm text-slate-600">
-            Al momento non ci sono tornei pubblicati. Riprova più tardi oppure carica i dati
-            locali di esempio in ambiente di sviluppo.
+            Al momento non ci sono tornei pubblicati. Riprova più tardi.
           </section>
         ) : (
           <section className="grid gap-4 md:grid-cols-2">
@@ -62,7 +61,7 @@ export async function PublishedTournamentsPage() {
                 <p className="mt-2 text-sm text-slate-600">{tournament.organizationName}</p>
                 <dl className="mt-5 grid grid-cols-2 gap-3 text-sm text-slate-600">
                   <div className="rounded-2xl bg-slate-50 p-3">
-                    <dt className="text-xs uppercase tracking-[0.16em] text-slate-500">Date</dt>
+                    <dt className="text-xs uppercase tracking-[0.16em] text-slate-500">Periodo</dt>
                     <dd className="mt-1 font-medium text-slate-900">
                       {formatDateRangeLabel(tournament.startsAt, tournament.endsAt)}
                     </dd>
@@ -99,7 +98,7 @@ export async function PublishedTournamentsPage() {
                     href={`/tournaments/${tournament.slug}/calendar`}
                     className={`rounded-full px-4 py-2 text-sm font-medium ${BRAND.classes.secondaryButton}`}
                   >
-                    Vedi calendario
+                    Calendario
                   </Link>
                 </div>
               </article>

@@ -14,7 +14,7 @@ type PublicTournamentNavProps = {
 
 const sections = [
   { href: "", label: "Panoramica" },
-  { href: "/register-team", label: "Registra squadra" },
+  { href: "/register-team", label: "Iscrivi la tua squadra" },
   { href: "/teams", label: "Squadre" },
   { href: "/calendar", label: "Calendario" },
   { href: "/standings", label: "Classifica" },

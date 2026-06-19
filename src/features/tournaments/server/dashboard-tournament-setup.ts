@@ -111,9 +111,9 @@ export function deriveDashboardTournamentSetupState(input: {
     (input.groupsSnapshot?.unassignedTeams.some((team) => team.groupSlot !== null) ?? false);
   const matchesExist = input.matches.length > 0;
   const settingsLockMessage = matchesExist
-    ? "Competition settings are locked because matches have already been generated. Clear generated matches before changing competition settings."
+    ? "Le impostazioni torneo sono bloccate perché le partite sono già state generate. Elimina prima la struttura generata per poterle cambiare."
     : assignmentsExist
-      ? "Competition settings are locked because group assignments already exist. Clear group assignments before changing competition settings."
+      ? "Le impostazioni torneo sono bloccate perché esistono già assegnazioni ai gironi. Svuota prima i gironi per poterle cambiare."
       : null;
   const settingsStatus: StepStatus = settingsLockMessage
     ? "LOCKED"
@@ -130,13 +130,13 @@ export function deriveDashboardTournamentSetupState(input: {
   if (isGroupedFormat && settingsComplete && input.groupsSnapshot && expectedGroupCount && expectedTeamsPerGroup) {
     if (input.groupsSnapshot.unassignedTeamCount > 0) {
       groupIssues.push(
-        `${input.groupsSnapshot.unassignedTeamCount} team${input.groupsSnapshot.unassignedTeamCount === 1 ? " is" : "s are"} currently unassigned.`,
+        `${input.groupsSnapshot.unassignedTeamCount} squadr${input.groupsSnapshot.unassignedTeamCount === 1 ? "a non è ancora assegnata" : "e non sono ancora assegnate"}.`,
       );
     }
 
     for (const unassignedTeam of input.groupsSnapshot.unassignedTeams) {
       if (unassignedTeam.groupSlot !== null) {
-        groupIssues.push(`Team ${unassignedTeam.name} has a slot value but is not assigned to any group.`);
+        groupIssues.push(`La squadra ${unassignedTeam.name} ha uno slot impostato ma non appartiene a nessun girone.`);
       }
     }
 
@@ -146,13 +146,13 @@ export function deriveDashboardTournamentSetupState(input: {
 
       for (const team of group.teams) {
         if (team.groupSlot === null) {
-          groupIssues.push(`Team ${team.name} has no group slot.`);
+          groupIssues.push(`La squadra ${team.name} non ha uno slot nel girone.`);
           continue;
         }
 
         if (team.groupSlot < 1 || team.groupSlot > expectedTeamsPerGroup) {
           groupIssues.push(
-            `Team ${team.name} has invalid slot ${team.groupSlot}. Expected slot numbers ${buildRequiredSlotLabel(expectedTeamsPerGroup)}.`,
+            `La squadra ${team.name} ha lo slot ${team.groupSlot}, ma gli slot validi sono ${buildRequiredSlotLabel(expectedTeamsPerGroup)}.`,
           );
         }
 
@@ -164,12 +164,12 @@ export function deriveDashboardTournamentSetupState(input: {
       }
 
       if (hasDuplicateSlot) {
-        groupIssues.push(`${group.name} has duplicate slot numbers.`);
+        groupIssues.push(`${group.name} contiene numeri di slot duplicati.`);
       }
 
       if (group.teams.length !== expectedTeamsPerGroup) {
         groupIssues.push(
-          `${group.name} has ${group.teams.length} team${group.teams.length === 1 ? "" : "s"} but ${expectedTeamsPerGroup} are required.`,
+          `${group.name} ha ${group.teams.length} squadr${group.teams.length === 1 ? "a" : "e"}, ma ne servono ${expectedTeamsPerGroup}.`,
         );
       } else {
         const expectedSlots = new Set(
@@ -182,7 +182,7 @@ export function deriveDashboardTournamentSetupState(input: {
           Array.from(expectedSlots).some((slot) => !currentSlots.has(slot))
         ) {
           groupIssues.push(
-            `${group.name} must use slot numbers ${buildRequiredSlotLabel(expectedTeamsPerGroup)}.`,
+            `${group.name} deve usare gli slot ${buildRequiredSlotLabel(expectedTeamsPerGroup)}.`,
           );
         }
       }
@@ -197,10 +197,10 @@ export function deriveDashboardTournamentSetupState(input: {
     groupStatus = "BLOCKED";
   } else if (!input.groupsSnapshot || expectedGroupCount === null || expectedTeamsPerGroup === null) {
     groupStatus = "BLOCKED";
-    groupIssues.push("Current group records are not available yet.");
+    groupIssues.push("I gironi salvati non sono ancora disponibili.");
   } else if (input.groupsSnapshot.existingGroupCount !== expectedGroupCount) {
     groupStatus = "BLOCKED";
-    groupIssues.push(`Groups: ${input.groupsSnapshot.existingGroupCount} / ${expectedGroupCount}. Save the current grouped competition settings first.`);
+    groupIssues.push(`Gironi: ${input.groupsSnapshot.existingGroupCount} / ${expectedGroupCount}. Salva prima la configurazione aggiornata del torneo.`);
   } else if (input.groupsSnapshot.assignedTeamCount === 0) {
     groupStatus = "INCOMPLETE";
   } else if (groupIssues.length > 0) {
@@ -224,45 +224,45 @@ export function deriveDashboardTournamentSetupState(input: {
   const structureIssues: string[] = [];
 
   if (!settingsComplete) {
-    structureIssues.push("Save complete competition settings before generating the structure.");
+    structureIssues.push("Salva impostazioni complete prima di generare la struttura del torneo.");
   }
 
   if (input.tournament.stages.length !== expectedStageCount) {
-    structureIssues.push(`Stages: ${input.tournament.stages.length} / ${expectedStageCount}.`);
+    structureIssues.push(`Fasi: ${input.tournament.stages.length} / ${expectedStageCount}.`);
   }
 
   if (input.tournament.scheduleSlots.length !== expectedSlotCount) {
-    structureIssues.push(`Schedule slots: ${input.tournament.scheduleSlots.length} / ${expectedSlotCount}.`);
+    structureIssues.push(`Slot orari: ${input.tournament.scheduleSlots.length} / ${expectedSlotCount}.`);
   }
 
   if (
     expectedTeamCount !== null &&
     input.attachedTeamCount !== expectedTeamCount
   ) {
-    structureIssues.push(`Attached teams: ${input.attachedTeamCount} / ${expectedTeamCount}.`);
+    structureIssues.push(`Squadre collegate: ${input.attachedTeamCount} / ${expectedTeamCount}.`);
   }
 
   if (isGroupedFormat) {
     if (!input.groupsSnapshot || expectedGroupCount === null || expectedTeamsPerGroup === null) {
-      structureIssues.push("Current group assignments are not available.");
+      structureIssues.push("Le assegnazioni ai gironi non sono ancora disponibili.");
     } else {
       if (groupStatus !== "COMPLETE") {
-        structureIssues.push("Current group assignments are not valid yet.");
+        structureIssues.push("Le assegnazioni ai gironi non sono ancora valide.");
       }
       if (input.groupsSnapshot.existingGroupCount !== expectedGroupCount) {
-        structureIssues.push(`Groups: ${input.groupsSnapshot.existingGroupCount} / ${expectedGroupCount}.`);
+        structureIssues.push(`Gironi: ${input.groupsSnapshot.existingGroupCount} / ${expectedGroupCount}.`);
       }
       if (
         expectedTeamCount !== null &&
         input.groupsSnapshot.assignedTeamCount !== expectedTeamCount
       ) {
-        structureIssues.push(`Assigned teams: ${input.groupsSnapshot.assignedTeamCount} / ${expectedTeamCount}.`);
+        structureIssues.push(`Squadre assegnate: ${input.groupsSnapshot.assignedTeamCount} / ${expectedTeamCount}.`);
       }
     }
   }
 
   if (managedMatches.length > 0) {
-    structureIssues.push("Generated matches already exist. Clear generated matches before generating a new structure.");
+    structureIssues.push("Esistono già partite generate. Elimina prima la struttura attuale per crearne una nuova.");
   }
 
   const structureReady = structureIssues.length === 0;
@@ -276,10 +276,10 @@ export function deriveDashboardTournamentSetupState(input: {
 
   const calendarMessage =
     managedMatches.length === 0
-      ? "Calendar scheduling becomes available after the structure has been generated."
+      ? "La programmazione del calendario sarà disponibile dopo la generazione della struttura."
       : scheduledManagedMatches.length === managedMatches.length
-        ? "All generated matches have scheduled dates and times."
-        : "Some generated matches still need dates and times.";
+        ? "Tutte le partite generate hanno già data e orario."
+        : "Alcune partite generate devono ancora essere programmate.";
 
   const resultsActive = input.matches.length > 0;
 
@@ -334,8 +334,8 @@ export function deriveDashboardTournamentSetupState(input: {
     results: {
       isActive: resultsActive,
       message: resultsActive
-        ? "Results and standings are active."
-        : "Results can be entered after matches are generated.",
+        ? "Risultati e classifiche sono attivi."
+        : "I risultati possono essere inseriti dopo la generazione delle partite.",
     },
     nextAllowedAction,
   };

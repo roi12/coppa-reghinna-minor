@@ -58,15 +58,10 @@ export async function PublicTournamentTeamRegistrationPage({
 
         <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
           <ul className="grid gap-3 leading-6">
-            <li>Registra la tua squadra come capitano del roster.</li>
-            <li>Minimo 5 giocatori, massimo 11 giocatori.</li>
-            <li>Inserisci nome, cognome, numero maglia da 0 a 99 e ruolo per ogni atleta.</li>
-            <li>L’iscrizione verrà controllata dall’organizzazione.</li>
-            <li>Solo dopo l’approvazione la squadra sarà visibile pubblicamente.</li>
-            <li>
-              Il pagamento non avviene online; eventuali istruzioni per bonifico saranno fornite
-              separatamente dagli organizzatori.
-            </li>
+            <li>Compila il modulo per registrare la tua squadra.</li>
+            <li>Dopo l&apos;invio riceverai il link privato per gestire la squadra.</li>
+            <li>Conserva il link: servirà per aggiornare le informazioni della squadra.</li>
+            <li>La squadra sarà visibile pubblicamente solo dopo l&apos;approvazione.</li>
           </ul>
         </div>
 
@@ -116,8 +111,8 @@ export async function PublicTournamentTeamRegistrationPage({
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               {registrationsOpen
-                ? "Inserisci i dati del capitano, il nome della squadra e una rosa da 5 a 11 giocatori per inviare l’iscrizione all’organizzazione."
-                : "Questo torneo non accetta più iscrizioni pubbliche per le squadre."}
+                ? "Inserisci i dati del capitano, il nome della squadra e la rosa per inviare l&apos;iscrizione."
+                : "Le iscrizioni online per questo torneo non sono disponibili in questo momento."}
             </p>
           </div>
 
@@ -132,8 +127,8 @@ export async function PublicTournamentTeamRegistrationPage({
           </div>
         ) : (
           <div className="mt-6 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm leading-6 text-slate-600">
-            L&apos;iscrizione è disponibile solo mentre il torneo è pubblicato. Le squadre già
-            visibili nella rosa pubblica sono state approvate dall&apos;organizzazione.
+            Le iscrizioni sono disponibili solo quando il torneo è aperto. Le squadre già presenti
+            nelle pagine pubbliche sono state approvate dagli organizzatori.
           </div>
         )}
       </section>

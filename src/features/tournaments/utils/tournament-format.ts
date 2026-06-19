@@ -12,11 +12,11 @@ const TOURNAMENT_FORMAT_LABELS: Record<TournamentFormatValue, string> = {
 };
 
 const TOURNAMENT_FORMAT_DESCRIPTIONS: Record<TournamentFormatValue, string> = {
-  SINGLE_ROUND_ROBIN: "Each team plays every other team once in a single league table.",
-  DOUBLE_ROUND_ROBIN: "Each team plays every other team twice, home and away.",
-  GROUPS_ONLY: "Teams are split into groups and play only the configured group stage.",
-  GROUPS_THEN_KNOCKOUT: "Teams start in groups before the top finishers advance into knockout rounds.",
-  KNOCKOUT_ONLY: "Teams advance through elimination rounds toward a final bracket.",
+  SINGLE_ROUND_ROBIN: "Ogni squadra affronta tutte le altre una sola volta in un girone unico.",
+  DOUBLE_ROUND_ROBIN: "Ogni squadra affronta tutte le altre due volte, andata e ritorno.",
+  GROUPS_ONLY: "Le squadre vengono divise in gironi e disputano solo la fase a gironi configurata.",
+  GROUPS_THEN_KNOCKOUT: "Le squadre partono dai gironi e poi passano alla fase finale a eliminazione diretta.",
+  KNOCKOUT_ONLY: "Le squadre avanzano in un tabellone a eliminazione diretta fino alla finale.",
 };
 
 export function normalizeTournamentFormat(
@@ -46,13 +46,13 @@ export function getTournamentFormatDashboardMessage(format: PersistedTournamentF
   switch (normalizeTournamentFormat(format)) {
     case "SINGLE_ROUND_ROBIN":
     case "DOUBLE_ROUND_ROBIN":
-      return "Competition generation and calendar scheduling are available for league-style tournaments.";
+      return "Configura il girone unico e poi genera calendario e partite della competizione.";
     case "GROUPS_ONLY":
-      return "Configure the group stage, assign teams, and generate only the group fixtures.";
+      return "Configura i gironi, assegna le squadre e genera solo le partite della fase a gironi.";
     case "GROUPS_THEN_KNOCKOUT":
-      return "Configure groups, qualification, and knockout structure before generating and scheduling the competition.";
+      return "Configura gironi, qualificazioni e fase finale prima di generare il calendario del torneo.";
     case "KNOCKOUT_ONLY":
-      return "Knockout structure and scheduling are available once the tournament format is fully configured.";
+      return "Configura il tabellone a eliminazione diretta prima di generare e programmare le partite.";
   }
 }
 

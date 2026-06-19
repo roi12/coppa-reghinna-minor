@@ -34,11 +34,11 @@ export async function PublicTournamentTeamsPage({
             Squadre partecipanti
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
-            Consulta le rose pubbliche di tutte le squadre del torneo.
+            Scopri le squadre partecipanti e le loro rose pubbliche.
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Le schede squadra seguono il seed del torneo quando disponibile. Anche da mobile la
-            lista giocatori resta leggibile senza passaggi extra.
+            Le schede mostrano le rose già pubblicate. Anche da mobile puoi controllare rapidamente
+            giocatori e numeri di maglia.
           </p>
         </article>
 
@@ -71,7 +71,7 @@ export async function PublicTournamentTeamsPage({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-                    {team.seed ? `Testa di serie ${team.seed}` : "Squadra qualificata"}
+                    {team.seed ? `Testa di serie ${team.seed}` : "Squadra partecipante"}
                   </p>
                   <h2 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
                     {team.name}
