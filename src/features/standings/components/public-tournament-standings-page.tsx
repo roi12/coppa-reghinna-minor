@@ -4,6 +4,7 @@ import { StandingsTable } from "@/features/standings/components/standings-table"
 import { getTournamentGroupStandings } from "@/features/standings/server/get-tournament-group-standings";
 import { getTournamentStandings } from "@/features/standings/server/get-tournament-standings";
 import { getTournamentBySlug } from "@/features/tournaments/server/get-tournament-by-slug";
+import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 
 type PublicTournamentStandingsPageProps = {
   slug: string;
@@ -18,7 +19,7 @@ export async function PublicTournamentStandingsPage({
     notFound();
   }
 
-  const isGroupedTournament = tournament.format === "GROUPS_PLUS_KNOCKOUT";
+  const isGroupedTournament = isGroupedTournamentFormat(tournament.format);
   const [standings, groupStandings] = await Promise.all([
     isGroupedTournament ? Promise.resolve(null) : getTournamentStandings(tournament.id),
     isGroupedTournament ? getTournamentGroupStandings(tournament.id) : Promise.resolve(null),

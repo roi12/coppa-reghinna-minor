@@ -58,14 +58,36 @@ export const getTournamentGroupStandings = cache(
 
     return groups.map((group) => {
       const teams = group.teams.map((entry) => entry.team);
-      const finishedMatches = group.matches.map((match) => ({
-        homeTeamId: match.homeTeamId,
-        awayTeamId: match.awayTeamId,
-        homeTeamName: match.homeTeam.name,
-        awayTeamName: match.awayTeam.name,
-        homeScore: match.homeScore as number,
-        awayScore: match.awayScore as number,
-      }));
+      const finishedMatches = group.matches
+        .map((match) => {
+          if (
+            !match.homeTeamId ||
+            !match.awayTeamId ||
+            !match.homeTeam?.name ||
+            !match.awayTeam?.name
+          ) {
+            return null;
+          }
+
+          return {
+            homeTeamId: match.homeTeamId,
+            awayTeamId: match.awayTeamId,
+            homeTeamName: match.homeTeam.name,
+            awayTeamName: match.awayTeam.name,
+            homeScore: match.homeScore as number,
+            awayScore: match.awayScore as number,
+          };
+        })
+        .filter(
+          (match): match is {
+            homeTeamId: string;
+            awayTeamId: string;
+            homeTeamName: string;
+            awayTeamName: string;
+            homeScore: number;
+            awayScore: number;
+          } => match !== null,
+        );
       const calculatedRows = calculateStandings(finishedMatches);
 
       return {

@@ -1,0 +1,2 @@
+ALTER TABLE "TournamentStage"
+ADD COLUMN "isPublic" BOOLEAN NOT NULL DEFAULT true;

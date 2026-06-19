@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import type { TournamentFormatValue } from "@/features/tournaments/types/tournament-format.types";
+import { normalizeTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { prisma } from "@/lib/prisma";
 
 export type DashboardTournamentListItem = {
@@ -55,7 +56,7 @@ export const listDashboardTournaments = cache(async (): Promise<DashboardTournam
     slug: tournament.slug,
     sport: tournament.sport,
     seasonLabel: tournament.seasonLabel,
-    format: tournament.format,
+    format: normalizeTournamentFormat(tournament.format),
     status: tournament.status,
     startsAt: tournament.startsAt,
     endsAt: tournament.endsAt,

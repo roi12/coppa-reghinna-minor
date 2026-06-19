@@ -5,7 +5,7 @@ Sports Platform powers the public and organizer workflow for **Coppa Reghinna Mi
 - public tournament pages
 - captain team registration and private registration management
 - owner/admin approval and tournament operations
-- groups and group-stage match generation
+- competition-structure generation, group assignment, and calendar scheduling
 - results and standings
 
 The app is now prepared for **PostgreSQL-backed deployment on Vercel**. Local development should also use PostgreSQL so the local environment matches production behavior.
@@ -43,9 +43,14 @@ This section describes the app **as it works now** (09-06-2026), including the l
   This creates the real team, attaches it to the tournament, creates the roster players, assigns the next seed, rotates the captain private manage link, marks the registration as reviewed, and emails the captain the new link.
 - Reject a pending registration.
 - Regenerate a captain private manage link if the original link is lost.
-- Configure groups for `GROUPS_PLUS_KNOCKOUT` tournaments.
-- Generate round-robin schedules automatically for `ROUND_ROBIN` tournaments.
-- Generate group-stage matches automatically from current group assignments for `GROUPS_PLUS_KNOCKOUT` tournaments.
+- Save competition settings for:
+  `SINGLE_ROUND_ROBIN`, `DOUBLE_ROUND_ROBIN`, `GROUPS_ONLY`, `GROUPS_THEN_KNOCKOUT`, and `KNOCKOUT_ONLY`.
+- Create or randomize group assignments for grouped tournaments.
+- Generate competition structure separately from scheduling:
+  group fixtures, knockout dependencies, and placeholder participants are created first without forcing dates.
+- Reschedule generated matches without rebuilding the competition structure.
+- Resolve knockout participants from final group standings and completed upstream knockout matches.
+- Delete only generated scheduled structure when it is still safe to do so.
 - Create matches manually.
 - Enter final match results or return a match to scheduled status.
 
@@ -86,8 +91,9 @@ The public area currently shows:
 - quick metrics such as teams, matches, and completed results
 - overview cards for upcoming matches and final results
 - public team rosters with player names and jersey numbers
-- full calendar of scheduled and completed matches
-- team standings based on final results only
+- full calendar of scheduled, live, and completed matches
+- placeholder participant labels for unresolved knockout slots such as group positions and upstream winners
+- team standings based on final results only, including per-group standings for grouped tournaments
 - share actions for public tournament pages
 
 ### What Is Stored And Calculated Today
@@ -107,8 +113,7 @@ The public area currently shows:
 - No public disciplinary tables.
 - No referee assignment flow.
 - No online payment flow.
-- No automated knockout bracket generation yet.
-- No public knockout bracket visualization yet.
+- No dedicated visual knockout bracket page yet; the public calendar already shows knockout rounds and placeholder participants.
 - No roster editing by captains after initial registration submission; the private link currently covers status and document handling, not roster mutation.
 - No document download UI for organizers from the dashboard at the moment; organizer visibility is focused on document status summaries.
 
@@ -150,94 +155,135 @@ The public area currently shows:
 
 ## Environment
 
+For local development, keep both `.env` and `.env.local` pointed at the same local PostgreSQL database. In this repository:
+
+- Next.js loads `.env.local` and `.env`
+- Prisma CLI loads `.env`
+- standalone Prisma and seed scripts that import `dotenv/config` also load `.env`
+
 Copy the example file first:
 
 ```bash
 cp .env.example .env
+cp .env.example .env.local
 ```
 
-Required variables:
+Required local variables:
 
+- `APP_ENV`
+  Use `local` for the local-only setup.
 - `DATABASE_URL`
-  PostgreSQL connection string for local and production environments.
+  PostgreSQL connection string used by the app runtime.
+- `DIRECT_URL`
+  PostgreSQL connection string used by Prisma CLI through `prisma.config.ts`.
 - `APP_URL`
-  Public base URL used for metadata, sitemap, and robots output.
-- `SMTP_HOST`
-  SMTP host for captain-facing email delivery. For Gmail use `smtp.gmail.com`.
-- `SMTP_PORT`
-  SMTP port. For Gmail app-password delivery use `465`.
-- `SMTP_SECURE`
-  SMTP TLS mode. For Gmail on port `465` use `true`.
-- `SMTP_USER`
-  SMTP username. For this setup use `coppareghinnaminor@gmail.com`.
-- `SMTP_PASSWORD`
-  Gmail App Password used only on the server.
-- `EMAIL_FROM`
-  Use `Coppa Reghinna Minor <coppareghinnaminor@gmail.com>` for the sender.
-- `EMAIL_REPLY_TO`
-  Reply-to inbox for captain replies. Use `coppareghinnaminor@gmail.com`.
+  Public base URL used locally for metadata and captain manage links.
+- `TEST_REGISTRATION_SEED_CONFIRM`
+  Set to `LOCAL_ONLY` only when you intentionally want the development registration seed to be allowed to run.
+
+Optional local placeholders:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 - `SUPABASE_URL`
-  Supabase project base URL used for private team document uploads.
 - `SUPABASE_SERVICE_ROLE_KEY`
-  Service role key used server-side to upload and delete captain-submitted player documents.
 - `SUPABASE_TEAM_DOCUMENTS_BUCKET`
-  Private bucket name used for team registration player documents.
-
-If `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, or `EMAIL_FROM` is missing, registration and approval still work and captain emails are skipped safely.
-
-Production seed variables:
-
-- `PRODUCTION_OWNER_EMAIL`
-- `PRODUCTION_OWNER_NAME` optional, default provided
-- `PRODUCTION_OWNER_PASSWORD`
-- `PRODUCTION_ADMIN_EMAIL`
-- `PRODUCTION_ADMIN_NAME` optional, default provided
-- `PRODUCTION_ADMIN_PASSWORD`
-
-Optional local QA variables:
-
+- `SMTP_HOST`
+- `SMTP_PORT`
+- `SMTP_SECURE`
+- `SMTP_USER`
+- `SMTP_PASSWORD`
+- `EMAIL_FROM`
+- `EMAIL_REPLY_TO`
 - `SMOKE_TEST_BASE_URL`
 - `SMOKE_TEST_TOURNAMENT_SLUG`
+
+If the SMTP variables are unset, registration and approval still work and captain emails are skipped safely.
 
 Example local PostgreSQL configuration:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@127.0.0.1:5432/sports_platform?schema=public"
+APP_ENV="local"
+DATABASE_URL="postgresql://reghinna:reghinna_local_password@localhost:5432/reghinna_local?schema=public"
+DIRECT_URL="postgresql://reghinna:reghinna_local_password@localhost:5432/reghinna_local?schema=public"
 APP_URL="http://localhost:3000"
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="465"
-SMTP_SECURE="true"
-SMTP_USER="coppareghinnaminor@gmail.com"
-SMTP_PASSWORD=""
-EMAIL_FROM="Coppa Reghinna Minor <coppareghinnaminor@gmail.com>"
-EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
-SUPABASE_URL="https://your-project-ref.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-SUPABASE_TEAM_DOCUMENTS_BUCKET="team-documents"
-```
-
-Example production PostgreSQL configuration:
-
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DATABASE?sslmode=require"
-APP_URL="https://your-domain.example"
-SMTP_HOST="smtp.gmail.com"
-SMTP_PORT="465"
-SMTP_SECURE="true"
-SMTP_USER="coppareghinnaminor@gmail.com"
-SMTP_PASSWORD=""
-EMAIL_FROM="Coppa Reghinna Minor <coppareghinnaminor@gmail.com>"
-EMAIL_REPLY_TO="coppareghinnaminor@gmail.com"
-SUPABASE_URL="https://your-project-ref.supabase.co"
-SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-SUPABASE_TEAM_DOCUMENTS_BUCKET="team-documents"
-PRODUCTION_OWNER_EMAIL="owner@example.com"
-PRODUCTION_OWNER_PASSWORD="strong-owner-password"
-PRODUCTION_ADMIN_EMAIL="admin@example.com"
-PRODUCTION_ADMIN_PASSWORD="strong-admin-password"
+TEST_REGISTRATION_SEED_CONFIRM="LOCAL_ONLY"
 ```
 
 ## Local Development
+
+## Tournament Formats And Scheduling
+
+Competition generation and calendar scheduling are now separate operations.
+
+- Competition generation creates stages, grouped fixtures, knockout rounds, and participant dependencies.
+- Calendar scheduling assigns dates and kickoff times later, using the saved slot configuration.
+- Rescheduling preserves pairings and results.
+- Regenerating structure is blocked when protected matches already exist.
+- Legacy tournaments without stage records still work through the compatibility layer and are not auto-deleted.
+
+Supported formats:
+
+- `SINGLE_ROUND_ROBIN`
+- `DOUBLE_ROUND_ROBIN`
+- `GROUPS_ONLY`
+- `GROUPS_THEN_KNOCKOUT`
+- `KNOCKOUT_ONLY`
+
+Coppa Reghinna Minor 2026 target configuration:
+
+- 16 teams
+- 4 groups
+- 4 teams per group
+- single round-robin group stage
+- top 2 per group qualify
+- quarter-finals, semi-finals, final
+- no third-place match
+- 31 matches total
+
+Default local scheduling for this format can be configured with:
+
+- start date chosen by the organizer
+- maximum 2 matches per day
+- slot times `22:00, 23:00`
+- duration `60` minutes
+- no team twice on the same calendar day
+
+Unit coverage for the pure generator and scheduler is available with:
+
+```bash
+npm run test:unit
+```
+
+## Development Registration Seed
+
+Use `npm run seed:test-registrations` to create 16 synthetic pending team registrations for the seeded tournament slug `coppa-reghinna-minor-2026`.
+
+Requirements:
+
+- `NODE_ENV` must not be `production`.
+- `TEST_REGISTRATION_SEED_CONFIRM` must be set to `LOCAL_ONLY` only for the run that should create or clean the synthetic registrations.
+- `DATABASE_URL` must point to a local PostgreSQL host.
+- If `DIRECT_URL` is set, it must also point to a local PostgreSQL host.
+- If `APP_URL` is set, it must be a local frontend URL such as `http://localhost:3000`.
+
+Behavior:
+
+- The seed creates only synthetic captain and player data, prefixes every team with `TEST –`, and marks every registration note with `BETA_TEST_DATA_2026`.
+- It does not send email and does not call external services.
+- It creates pending `TeamRegistration` and `TeamRegistrationPlayer` data only. It does not approve registrations and does not create `Team`, `TournamentTeam`, or `Player` records directly.
+- After creation it prints the local captain private management links once in the terminal.
+
+Idempotency and cleanup:
+
+- Re-running `npm run seed:test-registrations` deletes and recreates only the exact marked synthetic registrations for that tournament.
+- If one of those synthetic registrations was approved and now has linked matches, the script stops instead of deleting related data silently.
+- Use `npm run seed:test-registrations -- --cleanup-only` to remove only the marked synthetic registration dataset when it is safe to do so.
+
+Testing scope:
+
+- This seed helps test dashboard review, pending registration listing, captain private links, document workflows, and approval or rejection paths against deterministic data.
+- It does not test the browser submission flow itself. Keep at least one end-to-end form submission test for that path.
 
 This project uses Node 22.
 
@@ -250,8 +296,9 @@ Make sure a local PostgreSQL database exists and `DATABASE_URL` points to it, th
 
 ```bash
 npm run db:push
-npm run db:seed
 ```
+
+Only run `npm run db:seed`, `npm run db:seed:demo`, or `npm run db:seed:base` when you intentionally want to replace the current local seeded organizations and tournaments. They are not safe as routine verification steps if you need to preserve an existing local Coppa Reghinna Minor dataset.
 
 Start the app:
 
@@ -261,7 +308,8 @@ npm run dev
 
 Local seed behavior:
 
-- `npm run db:seed` loads local demo credentials and sample tournament data
+- `npm run db:seed:base` loads only the base local records for the Coppa Reghinna Minor tournament
+- `npm run db:seed` and `npm run db:seed:demo` load local demo credentials and sample tournament data
 - it creates sample `OWNER`, `ADMIN`, and `VIEWER` accounts
 - it is intended only for local development and QA
 - do **not** run it in production
@@ -272,6 +320,14 @@ If you prefer migrations locally instead of `db:push`:
 npm run db:migrate
 npm run db:seed
 ```
+
+For manual 16-team registration testing, start from the base seed:
+
+```bash
+npm run db:seed:base
+```
+
+That leaves the target tournament with zero teams, zero `TournamentTeam` links, zero players, and zero matches, ready for the synthetic registration approvals.
 
 ## Database Scripts
 
@@ -284,7 +340,11 @@ npm run db:seed
 - `npm run db:push`
   Syncs the current schema directly to the database.
 - `npm run db:seed`
-  Loads local demo data.
+  Loads the local demo seed.
+- `npm run db:seed:base`
+  Loads only the base local records needed for manual tournament testing.
+- `npm run db:seed:demo`
+  Loads the base local records plus the four demo teams, players, and sample matches.
 - `npm run db:seed:production`
   Loads the minimal branded production baseline.
 
@@ -387,8 +447,8 @@ npm run db:seed:production
 
 Important production warning:
 
-- do **not** run `npm run db:seed` in production
-- it creates demo users and demo tournament data
+- do **not** run `npm run db:seed` or `npm run db:seed:demo` in production
+- they create demo users and demo tournament data
 
 ### Monorepo Note
 

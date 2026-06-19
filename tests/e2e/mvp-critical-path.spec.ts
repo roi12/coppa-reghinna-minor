@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const TOURNAMENT_SLUG = "coppa-reghinna-minor-2026";
+const FORMAT_TEST_TOURNAMENT_SLUG = "format-preview-2026";
 const OWNER_EMAIL = "owner@sports-platform.local";
 const OWNER_PASSWORD = "owner-demo-pass";
 const VIEWER_EMAIL = "viewer@sports-platform.local";
@@ -231,14 +232,26 @@ test("owner rejects another registration and the rejected registration does not 
   await expect(page.getByText(TEAM_TO_REJECT)).not.toBeVisible();
 });
 
-test("owner generates a round-robin calendar", async ({ page }) => {
+test("owner cannot replace legacy matches after completed results exist", async ({ page }) => {
   await signIn(page, OWNER_EMAIL, OWNER_PASSWORD);
   await page.goto(dashboardTournamentPath());
 
-  await page.getByLabel("Existing match handling").selectOption("PRESERVE_EXISTING");
-  await page.getByRole("button", { name: "Generate calendar" }).click();
+  const settingsForm = page
+    .getByRole("heading", { name: "Competition settings" })
+    .locator("xpath=ancestor::article[1]")
+    .locator("form");
+  await settingsForm.getByRole("button", { name: "Save competition settings" }).click();
 
-  await expect(page.getByText(/Generated .*matches|Round-robin calendar generated|preserved .*existing pairing/i)).toBeVisible();
+  await expect(page.getByText("Competition settings saved.")).toBeVisible();
+
+  const structureForm = page
+    .getByRole("heading", { name: "Competition structure" })
+    .locator("xpath=ancestor::article[1]")
+    .getByLabel("Existing match handling");
+  await structureForm.selectOption("REPLACE_LEGACY_SCHEDULED");
+  await page.getByRole("button", { name: "Generate competition structure" }).click();
+
+  await expect(page.getByText(/Legacy matches cannot be replaced because some are live or completed\./i)).toBeVisible();
 });
 
 test("owner enters match results and public standings update correctly", async ({ page }) => {
@@ -270,6 +283,46 @@ test("owner enters match results and public standings update correctly", async (
 
   const rivergateRow = standingsDesktopRow(page, "Rivergate FC");
   await expect(rivergateRow).toContainText(/Rivergate FC\s+2\s+0\s+1\s+1\s+1\s+3\s+-2\s+1/);
+});
+
+test("owner configures a grouped knockout format and sees the 31-match preview", async ({ page }) => {
+  await signIn(page, OWNER_EMAIL, OWNER_PASSWORD);
+  await page.goto("/dashboard/tournaments/new");
+
+  await page.getByLabel("Tournament name").fill("Format Preview 2026");
+  await page.getByLabel("Slug").fill(FORMAT_TEST_TOURNAMENT_SLUG);
+  await page.getByLabel("Sport").fill("Futsal");
+  await page.getByLabel("Season label").fill("Estate 2026");
+  await page.getByLabel("Tournament format").selectOption("GROUPS_THEN_KNOCKOUT");
+  await page.getByRole("button", { name: "Create draft tournament" }).click();
+
+  await expect(page).toHaveURL(new RegExp(`/dashboard/tournaments/${FORMAT_TEST_TOURNAMENT_SLUG}`));
+
+  const settingsForm = page
+    .getByRole("heading", { name: "Competition settings" })
+    .locator("xpath=ancestor::article[1]")
+    .locator("form");
+
+  await settingsForm.getByLabel("Format type").selectOption("GROUPS_THEN_KNOCKOUT");
+  await settingsForm.getByLabel("Expected team count").fill("16");
+  await settingsForm.getByLabel("Schedule start date").fill("2026-07-01");
+  await settingsForm.getByLabel("Maximum matches per day").fill("2");
+  await settingsForm.getByLabel("Minimum rest days").fill("0");
+  await settingsForm.getByLabel("Daily slot times").fill("22:00, 23:00");
+  await settingsForm.getByLabel("Slot duration (minutes)").fill("60");
+  await settingsForm.getByLabel("Group count").fill("4");
+  await settingsForm.getByLabel("Teams per group").fill("4");
+  await settingsForm.getByLabel("Legs").fill("1");
+  await settingsForm.getByLabel("Qualifiers per group").fill("2");
+  await settingsForm.getByLabel("Knockout entry size").fill("8");
+  await settingsForm.getByLabel("Starting round").selectOption("QUARTER_FINAL");
+  await settingsForm.getByLabel("Pairing rule").fill("CROSS_ADJACENT_GROUPS");
+  await settingsForm.getByRole("button", { name: "Save competition settings" }).click();
+
+  await expect(page.getByText("Competition settings saved.")).toBeVisible();
+  await expect(
+    page.getByText("Preview: 31 matches total, including 4 quarter-finals, 2 semi-finals, 1 final."),
+  ).toBeVisible();
 });
 
 test("viewer login cannot access /dashboard", async ({ page }) => {

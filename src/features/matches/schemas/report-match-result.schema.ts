@@ -10,7 +10,7 @@ const optionalScoreSchema = z.preprocess((value) => {
 
 export const reportMatchResultSchema = z.object({
   matchId: z.string().cuid(),
-  status: z.enum(["SCHEDULED", "FINAL"]),
+  status: z.enum(["SCHEDULED", "LIVE", "FINAL"]),
   homeScore: optionalScoreSchema,
   awayScore: optionalScoreSchema,
 }).superRefine((value, context) => {
@@ -31,6 +31,7 @@ export const reportMatchResultSchema = z.object({
       });
     }
   }
+
 });
 
 export type ReportMatchResultInput = z.infer<typeof reportMatchResultSchema>;

@@ -5,11 +5,7 @@ import { FeedbackBanner } from "@/components/ui/feedback-banner";
 import { DashboardTournamentGroupsPanel } from "@/features/groups/components/dashboard-tournament-groups-panel";
 import { listTournamentGroupsWithTeams } from "@/features/groups/server/list-tournament-groups-with-teams";
 import { DashboardMatchResultsPanel } from "@/features/matches/components/dashboard-match-results-panel";
-import {
-  createTournamentMatchAction,
-  generateGroupStageMatchesAction,
-  generateTournamentRoundRobinCalendarAction,
-} from "@/features/matches/server/match-actions";
+import { createTournamentMatchAction } from "@/features/matches/server/match-actions";
 import { listTournamentMatches } from "@/features/matches/server/list-tournament-matches";
 import { createTeamPlayerAction } from "@/features/players/server/player-actions";
 import { listTeamPlayers } from "@/features/players/server/list-team-players";
@@ -22,20 +18,40 @@ import {
   createTournamentTeamAction,
 } from "@/features/teams/server/team-actions";
 import { listTournamentTeams } from "@/features/teams/server/list-tournament-teams";
+import { DashboardTournamentQualificationResolutionPanel } from "@/features/tournaments/components/dashboard-tournament-qualification-resolution-panel";
+import { DashboardTournamentCompetitionSettingsForm } from "@/features/tournaments/components/dashboard-tournament-competition-settings-form";
+import { DashboardTournamentGenerationForm } from "@/features/tournaments/components/dashboard-tournament-generation-form";
+import { DashboardTournamentSetupSummary } from "@/features/tournaments/components/dashboard-tournament-setup-summary";
+import { deriveDashboardTournamentSetupState } from "@/features/tournaments/server/dashboard-tournament-setup";
 import { getDashboardTournamentBySlug } from "@/features/tournaments/server/get-dashboard-tournament-by-slug";
+import { getTournamentQualificationResolution } from "@/features/tournaments/server/get-tournament-qualification-resolution";
+import type { QualificationResolutionSnapshot } from "@/features/tournaments/server/qualification-resolution";
+import {
+  buildDefaultCompetitionSettings,
+  buildDefaultScheduleSlots,
+  formatScheduleSlotStartTime,
+  mapPersistedStagesToCompetitionInput,
+} from "@/features/tournaments/server/tournament-competition";
+import {
+  deleteTournamentCompetitionStructureAction,
+  generateTournamentCompetitionStructureAction,
+  rescheduleTournamentCompetitionAction,
+  resolveTournamentKnockoutParticipantsAction,
+  toggleTournamentFinalPhaseVisibilityAction,
+} from "@/features/tournaments/server/tournament-competition-actions";
+import { getKnockoutStageVisibilityState } from "@/features/tournaments/server/tournament-stage-visibility";
 import { updateTournamentAction } from "@/features/tournaments/server/tournament-actions";
 import { TOURNAMENT_FORMAT_VALUES } from "@/features/tournaments/types/tournament-format.types";
 import {
-  EMPTY_KNOCKOUT_BRACKET_FOUNDATION,
-  getTournamentFormatDashboardMessage,
   getTournamentFormatLabel,
+  isGroupedTournamentFormat,
+  isKnockoutTournamentFormat,
 } from "@/features/tournaments/utils/tournament-format";
 import type { DashboardFeedback } from "@/lib/dashboard-feedback";
 import {
   formatDateInputValue,
   formatDateRangeLabel,
   formatDateTimeInputValue,
-  formatTimeInputValue,
 } from "@/lib/format-date";
 
 type DashboardTournamentPageProps = {
@@ -59,7 +75,7 @@ export async function DashboardTournamentPage({
       listOrganizationTeams(tournament.organizationId),
       listTournamentMatches(tournament.id),
       listTournamentTeamRegistrations(tournament.id),
-      tournament.format === "GROUPS_PLUS_KNOCKOUT"
+      isGroupedTournamentFormat(tournament.format)
         ? listTournamentGroupsWithTeams(tournament.id)
         : Promise.resolve(null),
       readDashboardCaptainManageLinkFlash(tournament.slug),
@@ -73,11 +89,63 @@ export async function DashboardTournamentPage({
       players: await listTeamPlayers(team.id),
     })),
   );
-  const groupStageGroupsReady =
-    tournament.format === "GROUPS_PLUS_KNOCKOUT" &&
-    groupsSnapshot !== null &&
-    groupsSnapshot.groups.length > 0 &&
-    groupsSnapshot.groups.every((group) => group.teams.length >= 2);
+  const isGroupedTournament = isGroupedTournamentFormat(tournament.format);
+  const isKnockoutTournament = isKnockoutTournamentFormat(tournament.format);
+  const qualificationResolutionSnapshot: QualificationResolutionSnapshot = isKnockoutTournament
+    ? await getTournamentQualificationResolution(tournament.id)
+    : { unresolvedSlots: [] };
+  const defaultCompetitionSettings = buildDefaultCompetitionSettings(tournament.format);
+  const persistedCompetitionStages = tournament.stages.length > 0
+    ? mapPersistedStagesToCompetitionInput(tournament.stages).map((stage) =>
+        stage.type === "GROUP_STAGE"
+          ? {
+              type: stage.type,
+              order: stage.order,
+              name: stage.name,
+              groupCount: stage.groupCount,
+              teamsPerGroup: stage.teamsPerGroup,
+              legs: stage.legs,
+              qualifiersPerGroup: stage.qualifiersPerGroup,
+              stageBreakDaysAfter: stage.stageBreakDaysAfter,
+            }
+          : {
+              type: stage.type,
+              order: stage.order,
+              name: stage.name,
+              knockoutTeamCount: stage.knockoutTeamCount,
+              knockoutRound: stage.knockoutRound,
+              includeThirdPlaceMatch: stage.includeThirdPlaceMatch,
+              stageBreakDaysAfter: stage.stageBreakDaysAfter,
+              pairingRule: stage.pairingRule,
+            },
+      )
+    : defaultCompetitionSettings.stages;
+  const groupStageConfiguration = persistedCompetitionStages.find(
+    (stage) => stage.type === "GROUP_STAGE",
+  );
+  const knockoutStageConfiguration = persistedCompetitionStages.find(
+    (stage) => stage.type === "KNOCKOUT_STAGE",
+  );
+  const scheduleSlotDefaults = tournament.scheduleSlots.length > 0
+    ? tournament.scheduleSlots
+    : buildDefaultScheduleSlots().map((slot) => ({
+        id: `default-${slot.sequence}`,
+        sequence: slot.sequence,
+        startMinutes: Number(slot.startTime.slice(0, 2)) * 60 + Number(slot.startTime.slice(3, 5)),
+        durationMinutes: slot.durationMinutes,
+      }));
+  const slotTimesDefault = scheduleSlotDefaults
+    .map((slot) => formatScheduleSlotStartTime(slot.startMinutes))
+    .join(", ");
+  const slotDurationDefault = scheduleSlotDefaults[0]?.durationMinutes ?? 60;
+  const legacyMatches = matches.filter((match) => match.stageId === null);
+  const setupState = deriveDashboardTournamentSetupState({
+    tournament,
+    attachedTeamCount: tournamentTeams.length,
+    groupsSnapshot,
+    matches,
+  });
+  const stageVisibility = getKnockoutStageVisibilityState(tournament.stages);
 
   return (
     <div className="grid gap-6">
@@ -250,6 +318,426 @@ export async function DashboardTournamentPage({
             Save tournament details
           </button>
         </form>
+      </section>
+
+      <DashboardTournamentSetupSummary setupState={setupState} />
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+        <div className="grid min-w-0 gap-6">
+          <DashboardTournamentCompetitionSettingsForm
+            tournamentId={tournament.id}
+            tournamentSlug={tournament.slug}
+            status={setupState.settings.status}
+            isLocked={setupState.settings.isLocked}
+            lockedMessage={setupState.settings.message}
+            initialFormat={tournament.format}
+            initialExpectedTeamCount={tournament.expectedTeamCount ?? defaultCompetitionSettings.expectedTeamCount}
+            initialScheduleStartDate={formatDateInputValue(
+              tournament.scheduleStartDate ?? tournament.startsAt,
+            )}
+            initialScheduleMaxMatchesPerDay={
+              tournament.scheduleMaxMatchesPerDay ?? defaultCompetitionSettings.scheduleMaxMatchesPerDay
+            }
+            initialScheduleMinimumRestDays={
+              tournament.scheduleMinimumRestDays ?? defaultCompetitionSettings.scheduleMinimumRestDays
+            }
+            initialSlotTimes={slotTimesDefault}
+            initialSlotDurationMinutes={slotDurationDefault}
+            initialGroupStageConfiguration={
+              groupStageConfiguration?.type === "GROUP_STAGE"
+                ? {
+                    groupCount: groupStageConfiguration.groupCount,
+                    teamsPerGroup: groupStageConfiguration.teamsPerGroup,
+                    legs: groupStageConfiguration.legs,
+                    qualifiersPerGroup: groupStageConfiguration.qualifiersPerGroup,
+                  }
+                : null
+            }
+            initialKnockoutStageConfiguration={
+              knockoutStageConfiguration?.type === "KNOCKOUT_STAGE"
+                ? {
+                    knockoutTeamCount: knockoutStageConfiguration.knockoutTeamCount,
+                    knockoutRound: knockoutStageConfiguration.knockoutRound,
+                    includeThirdPlaceMatch: knockoutStageConfiguration.includeThirdPlaceMatch,
+                    pairingRule: knockoutStageConfiguration.pairingRule,
+                  }
+                : null
+            }
+          />
+
+          <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight">Public visibility</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  Dashboard users always see every stage. Public pages can keep the final phase hidden until you decide to reveal it.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Group stage</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">
+                  {stageVisibility.groupStageIsPublic === false ? "Hidden" : "Public"}
+                </p>
+              </article>
+              <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Final phase</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">
+                  {stageVisibility.knockoutStageIsPublic === null
+                    ? "Not configured"
+                    : stageVisibility.knockoutStageIsPublic
+                      ? "Public"
+                      : "Hidden"}
+                </p>
+              </article>
+            </div>
+
+            {stageVisibility.hasKnockoutStage ? (
+              <form action={toggleTournamentFinalPhaseVisibilityAction} className="mt-5 grid gap-3">
+                <input type="hidden" name="tournamentId" value={tournament.id} />
+                <input type="hidden" name="tournamentSlug" value={tournament.slug} />
+                <input
+                  type="hidden"
+                  name="isPublic"
+                  value={stageVisibility.knockoutStageIsPublic ? "false" : "true"}
+                />
+
+                <p className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  {stageVisibility.knockoutStageIsPublic
+                    ? "The quarter-finals, semi-finals, and final are currently visible on public tournament pages."
+                    : "The quarter-finals, semi-finals, and final are currently hidden on public tournament pages."}
+                </p>
+
+                <button
+                  type="submit"
+                  className="w-fit rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-900"
+                >
+                  {stageVisibility.knockoutStageIsPublic
+                    ? "Hide final phase publicly"
+                    : "Show final phase publicly"}
+                </button>
+              </form>
+            ) : (
+              <p className="mt-5 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                Save a knockout configuration before changing final-phase visibility.
+              </p>
+            )}
+          </article>
+
+          {isGroupedTournament &&
+          groupsSnapshot &&
+          groupStageConfiguration?.type === "GROUP_STAGE" ? (
+            <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+              <DashboardTournamentGroupsPanel
+                tournamentId={tournament.id}
+                tournamentSlug={tournament.slug}
+                attachedTeamCount={tournamentTeams.length}
+                groupsSnapshot={groupsSnapshot}
+                expectedGroupCount={groupStageConfiguration.groupCount}
+                expectedTeamsPerGroup={groupStageConfiguration.teamsPerGroup}
+                status={setupState.groups.status}
+                issues={setupState.groups.issues}
+                isDisabled={setupState.groups.isBlocked}
+                expectedTeamCount={setupState.groups.expectedTeamCount}
+              />
+            </article>
+          ) : null}
+
+          <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight">
+                  Step 3 · Generate competition structure
+                </h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  Create stages, group fixtures, and knockout dependencies only when the persisted
+                  tournament setup is complete and valid.
+                </p>
+              </div>
+              <span
+                className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                  setupState.structure.readyToGenerate
+                    ? "bg-emerald-100 text-emerald-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}
+              >
+                Ready to generate: {setupState.structure.readyToGenerate ? "Yes" : "No"}
+              </span>
+            </div>
+
+            <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Generated matches</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">
+                  {setupState.structure.generatedMatchCount} / {setupState.structure.expectedMatchCount}
+                </p>
+              </article>
+              <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Stages</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">
+                  {setupState.structure.existingStageCount} / {setupState.structure.expectedStageCount}
+                </p>
+              </article>
+              <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Schedule slots</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">
+                  {setupState.structure.configuredSlotCount} / {setupState.structure.expectedSlotCount}
+                </p>
+              </article>
+              <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Legacy matches</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">{legacyMatches.length}</p>
+              </article>
+            </div>
+
+            {setupState.structure.issues.length > 0 ? (
+              <div className="mt-5 grid gap-3 rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
+                {setupState.structure.issues.map((issue) => (
+                  <p key={issue}>{issue}</p>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="mt-5 grid gap-4 lg:grid-cols-2">
+              <DashboardTournamentGenerationForm
+                action={generateTournamentCompetitionStructureAction}
+                tournamentId={tournament.id}
+                tournamentSlug={tournament.slug}
+                isReady={setupState.structure.readyToGenerate}
+              />
+
+              <form
+                action={deleteTournamentCompetitionStructureAction}
+                className="grid gap-3 rounded-3xl border border-rose-200 bg-rose-50 p-5"
+              >
+                <input type="hidden" name="tournamentId" value={tournament.id} />
+                <input type="hidden" name="tournamentSlug" value={tournament.slug} />
+                <div>
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-rose-700">
+                    Delete managed structure
+                  </h4>
+                  <p className="mt-2 text-sm text-rose-900">
+                    Removes only generated scheduled matches. Completed, live, and legacy matches are protected.
+                  </p>
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-full border border-rose-300 bg-white px-5 py-3 text-sm font-medium text-rose-700 sm:w-fit"
+                >
+                  Delete generated structure
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-8 border-t border-slate-200 pt-8">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h3 className="text-xl font-semibold tracking-tight">Step 4 · Schedule calendar</h3>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Assign dates and kickoff times only after the competition structure has been generated.
+                  </p>
+                </div>
+                <span
+                  className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
+                    setupState.calendar.status === "COMPLETE"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : setupState.calendar.status === "INCOMPLETE"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200 text-slate-700"
+                  }`}
+                >
+                  {setupState.calendar.status}
+                </span>
+              </div>
+
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Generated matches</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-950">
+                    {setupState.calendar.generatedMatchCount} / {setupState.calendar.expectedMatchCount}
+                  </p>
+                </article>
+                <article className="rounded-2xl bg-slate-50 px-4 py-3">
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Scheduled matches</p>
+                  <p className="mt-1 text-lg font-semibold text-slate-950">
+                    {setupState.calendar.scheduledMatchCount} / {setupState.calendar.expectedMatchCount}
+                  </p>
+                </article>
+              </div>
+
+              <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+                {setupState.calendar.message}
+              </div>
+
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <form
+                  action={rescheduleTournamentCompetitionAction}
+                  className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                >
+                  <input type="hidden" name="tournamentId" value={tournament.id} />
+                  <input type="hidden" name="tournamentSlug" value={tournament.slug} />
+                  <fieldset
+                    disabled={!setupState.calendar.canSchedule}
+                    className="grid gap-3 disabled:opacity-60"
+                  >
+                    <div>
+                      <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Reschedule calendar
+                      </h4>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Reassign dates and times using the saved start date, slot list, and rest rules.
+                      </p>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-100 sm:w-fit"
+                    >
+                      Reschedule generated matches
+                    </button>
+                  </fieldset>
+                </form>
+
+                {isKnockoutTournament ? (
+                  <form
+                    action={resolveTournamentKnockoutParticipantsAction}
+                    className="grid gap-3 rounded-3xl border border-slate-200 bg-slate-50 p-5"
+                  >
+                    <input type="hidden" name="tournamentId" value={tournament.id} />
+                    <input type="hidden" name="tournamentSlug" value={tournament.slug} />
+                    <div>
+                      <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        Resolve qualifiers
+                      </h4>
+                      <p className="mt-2 text-sm text-slate-600">
+                        Fills knockout participants from final group standings and completed upstream
+                        matches without creating fake teams.
+                      </p>
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-700 sm:w-fit"
+                    >
+                      Resolve knockout participants
+                    </button>
+                  </form>
+                ) : null}
+              </div>
+
+              {isKnockoutTournament ? (
+                <div className="mt-5">
+                  <DashboardTournamentQualificationResolutionPanel
+                    tournamentId={tournament.id}
+                    tournamentSlug={tournament.slug}
+                    resolutionSnapshot={qualificationResolutionSnapshot}
+                  />
+                </div>
+              ) : null}
+            </div>
+          </article>
+
+          <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+            <h3 className="text-xl font-semibold tracking-tight">Create manual match</h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Add fixtures manually with participating tournament teams.
+            </p>
+
+            {tournamentTeams.length < 2 ? (
+              <p className="mt-5 text-sm text-slate-600">
+                At least two tournament teams are required before a match can be scheduled.
+              </p>
+            ) : (
+              <form action={createTournamentMatchAction} className="mt-5 grid gap-4">
+                <input type="hidden" name="tournamentId" value={tournament.id} />
+                <input type="hidden" name="tournamentSlug" value={tournament.slug} />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-2 text-sm font-medium text-slate-700">
+                    Home team
+                    <select
+                      name="homeTeamId"
+                      required
+                      defaultValue={tournamentTeams[0]?.id}
+                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+                    >
+                      {tournamentTeams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm font-medium text-slate-700">
+                    Away team
+                    <select
+                      name="awayTeamId"
+                      required
+                      defaultValue={tournamentTeams[1]?.id}
+                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+                    >
+                      {tournamentTeams.map((team) => (
+                        <option key={team.id} value={team.id}>
+                          {team.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-2 text-sm font-medium text-slate-700">
+                    Round label
+                    <input
+                      name="roundLabel"
+                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+                      placeholder="Round 3"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-medium text-slate-700">
+                    Kickoff
+                    <input
+                      type="datetime-local"
+                      name="startsAt"
+                      defaultValue={formatDateTimeInputValue(null)}
+                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">
+                    Location
+                    <input
+                      name="locationLabel"
+                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
+                      placeholder="Harbor Main Field"
+                    />
+                  </label>
+                </div>
+                <button
+                  type="submit"
+                  className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
+                >
+                  Create match
+                </button>
+              </form>
+            )}
+          </article>
+        </div>
+
+        <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="text-xl font-semibold tracking-tight">Step 5 · Results / standings</h3>
+              <p className="mt-2 text-sm text-slate-600">
+                Update match status, enter scores, and publish completed results only after matches exist.
+              </p>
+            </div>
+            <span className="text-sm text-slate-500">{matches.length} matches</span>
+          </div>
+
+          {!setupState.results.isActive ? (
+            <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+              {setupState.results.message}
+            </div>
+          ) : null}
+
+          <DashboardMatchResultsPanel matches={matches} tournamentSlug={tournament.slug} />
+        </article>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
@@ -454,296 +942,6 @@ export async function DashboardTournamentPage({
         </article>
       </section>
 
-      {tournament.format === "GROUPS_PLUS_KNOCKOUT" && groupsSnapshot ? (
-        <section className="min-w-0">
-          <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="min-w-0">
-                <h3 className="text-xl font-semibold tracking-tight">Group stage setup</h3>
-                <p className="mt-2 text-sm text-slate-600">
-                  Create flexible groups from the current approved tournament teams before any
-                  group-stage fixtures are generated.
-                </p>
-              </div>
-              <span className="w-fit shrink-0 text-sm text-slate-500">
-                {groupsSnapshot.existingGroupCount} group
-                {groupsSnapshot.existingGroupCount === 1 ? "" : "s"}
-              </span>
-            </div>
-            <DashboardTournamentGroupsPanel
-              tournamentId={tournament.id}
-              tournamentSlug={tournament.slug}
-              attachedTeamCount={tournamentTeams.length}
-              groupsSnapshot={groupsSnapshot}
-            />
-          </article>
-        </section>
-      ) : null}
-
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
-        <div className="grid min-w-0 gap-6">
-          <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xl font-semibold tracking-tight">Format workflow</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              {getTournamentFormatDashboardMessage(tournament.format)}
-            </p>
-
-            {tournament.format === "ROUND_ROBIN" ? (
-              tournamentTeams.length < 2 ? (
-                <p className="mt-5 text-sm text-slate-600">
-                  At least two tournament teams are required before a calendar can be generated.
-                </p>
-              ) : (
-                <form
-                  action={generateTournamentRoundRobinCalendarAction}
-                  className="mt-5 grid min-w-0 gap-4"
-                >
-                  <input type="hidden" name="tournamentId" value={tournament.id} />
-                  <input type="hidden" name="tournamentSlug" value={tournament.slug} />
-                  <div className="grid min-w-0 gap-4 2xl:grid-cols-2">
-                    <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                      Start date
-                      <input
-                        type="date"
-                        name="startDate"
-                        required
-                        defaultValue={formatDateInputValue(tournament.startsAt)}
-                        className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      />
-                    </label>
-                    <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                      Matchday interval in days
-                      <input
-                        type="number"
-                        name="intervalDays"
-                        min="1"
-                        required
-                        defaultValue="7"
-                        className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      />
-                    </label>
-                    <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                      Default match time
-                      <input
-                        type="time"
-                        name="defaultMatchTime"
-                        defaultValue={formatTimeInputValue(tournament.startsAt)}
-                        className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      />
-                    </label>
-                    <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                      Existing match handling
-                      <select
-                        name="generationMode"
-                        defaultValue="PRESERVE_EXISTING"
-                        className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      >
-                        <option value="PRESERVE_EXISTING">Preserve existing matches</option>
-                        <option value="REPLACE_SCHEDULED">Replace scheduled matches only</option>
-                      </select>
-                    </label>
-                  </div>
-                  <p className="min-w-0 text-sm text-slate-500">
-                    Preserve mode adds only missing pairings. Replace mode deletes scheduled
-                    matches, keeps completed results, and rebuilds the remaining round-robin
-                    calendar.
-                  </p>
-                  <button
-                    type="submit"
-                    className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white sm:w-fit"
-                  >
-                    Generate calendar
-                  </button>
-                </form>
-              )
-            ) : tournament.format === "KNOCKOUT" ? (
-              <div className="mt-5 grid gap-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                <p>
-                  Automatic knockout bracket generation is not available yet for this tournament.
-                </p>
-                <p>
-                  Foundation prepared: {EMPTY_KNOCKOUT_BRACKET_FOUNDATION.rounds.length} bracket
-                  rounds configured by default, third-place match toggle, and seeding notes schema.
-                </p>
-              </div>
-            ) : groupsSnapshot === null || groupsSnapshot.groups.length === 0 ? (
-              <div className="mt-5 grid gap-4 rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm text-slate-600">
-                <p>Create tournament groups before generating group-stage matches.</p>
-                <p>
-                  Group-stage scheduling only works from the current group assignments. Knockout
-                  generation remains out of scope for this phase.
-                </p>
-              </div>
-            ) : !groupStageGroupsReady ? (
-              <div className="mt-5 grid gap-4 rounded-3xl border border-dashed border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
-                <p>Every group needs at least two assigned teams before group-stage matches can be generated.</p>
-                <p>
-                  Current setup: {groupsSnapshot.groups.length} groups, {groupsSnapshot.assignedTeamCount} assigned teams,{" "}
-                  {groupsSnapshot.unassignedTeamCount} unassigned teams.
-                </p>
-              </div>
-            ) : (
-              <form
-                action={generateGroupStageMatchesAction}
-                className="mt-5 grid min-w-0 gap-4"
-              >
-                <input type="hidden" name="tournamentId" value={tournament.id} />
-                <input type="hidden" name="tournamentSlug" value={tournament.slug} />
-                <div className="grid min-w-0 gap-4 2xl:grid-cols-2">
-                  <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                    Start date
-                    <input
-                      type="date"
-                      name="startDate"
-                      required
-                      defaultValue={formatDateInputValue(tournament.startsAt)}
-                      className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    />
-                  </label>
-                  <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                    Matchday interval in days
-                    <input
-                      type="number"
-                      name="intervalDays"
-                      min="1"
-                      required
-                      defaultValue="7"
-                      className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    />
-                  </label>
-                  <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                    Default match time
-                    <input
-                      type="time"
-                      name="defaultMatchTime"
-                      defaultValue={formatTimeInputValue(tournament.startsAt)}
-                      className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    />
-                  </label>
-                  <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
-                    Existing match handling
-                    <select
-                      name="generationMode"
-                      defaultValue="PRESERVE_EXISTING"
-                      className="min-w-0 w-full rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    >
-                      <option value="PRESERVE_EXISTING">Preserve existing matches</option>
-                      <option value="REPLACE_SCHEDULED_GROUP_STAGE">
-                        Replace scheduled group-stage matches only
-                      </option>
-                    </select>
-                  </label>
-                </div>
-                <p className="min-w-0 text-sm text-slate-500">
-                  Matches are generated only inside each group. Preserve mode adds only missing
-                  pairings. Replace mode deletes scheduled group-stage matches, keeps completed
-                  results, and rebuilds the remaining group round robins.
-                </p>
-                <button
-                  type="submit"
-                  className="w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white sm:w-fit"
-                >
-                  Generate group-stage matches
-                </button>
-              </form>
-            )}
-          </article>
-
-          <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-            <h3 className="text-xl font-semibold tracking-tight">Create manual match</h3>
-            <p className="mt-2 text-sm text-slate-600">
-              Add fixtures manually with participating tournament teams.
-            </p>
-
-            {tournamentTeams.length < 2 ? (
-              <p className="mt-5 text-sm text-slate-600">
-                At least two tournament teams are required before a match can be scheduled.
-              </p>
-            ) : (
-              <form action={createTournamentMatchAction} className="mt-5 grid gap-4">
-                <input type="hidden" name="tournamentId" value={tournament.id} />
-                <input type="hidden" name="tournamentSlug" value={tournament.slug} />
-                <div className="grid gap-4 md:grid-cols-2">
-                  <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Home team
-                    <select
-                      name="homeTeamId"
-                      required
-                      defaultValue={tournamentTeams[0]?.id}
-                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    >
-                      {tournamentTeams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Away team
-                    <select
-                      name="awayTeamId"
-                      required
-                      defaultValue={tournamentTeams[1]?.id}
-                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    >
-                      {tournamentTeams.map((team) => (
-                        <option key={team.id} value={team.id}>
-                          {team.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Round label
-                    <input
-                      name="roundLabel"
-                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      placeholder="Round 3"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-slate-700">
-                    Kickoff
-                    <input
-                      type="datetime-local"
-                      name="startsAt"
-                      defaultValue={formatDateTimeInputValue(null)}
-                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm font-medium text-slate-700 md:col-span-2">
-                    Location
-                    <input
-                      name="locationLabel"
-                      className="rounded-2xl border border-slate-300 px-4 py-3 text-sm text-slate-900"
-                      placeholder="Harbor Main Field"
-                    />
-                  </label>
-                </div>
-                <button
-                  type="submit"
-                  className="w-fit rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white"
-                >
-                  Create match
-                </button>
-              </form>
-            )}
-          </article>
-        </div>
-
-        <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-xl font-semibold tracking-tight">Match results</h3>
-              <p className="mt-2 text-sm text-slate-600">
-                Update match status, enter scores, and publish completed results.
-              </p>
-            </div>
-            <span className="text-sm text-slate-500">{matches.length} matches</span>
-          </div>
-          <DashboardMatchResultsPanel matches={matches} tournamentSlug={tournament.slug} />
-        </article>
-      </section>
     </div>
   );
 }

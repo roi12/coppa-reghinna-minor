@@ -11,18 +11,26 @@ export async function getTournamentStandings(tournamentId: string): Promise<Stan
   ]);
 
   const finishedMatches = matches.flatMap((match) => {
-    if (match.status !== "FINAL" || match.homeScore === null || match.awayScore === null) {
+    if (
+      match.status !== "FINAL" ||
+      match.homeScore === null ||
+      match.awayScore === null ||
+      !match.homeTeamId ||
+      !match.awayTeamId
+    ) {
       return [];
     }
 
-    return [{
-      homeTeamId: match.homeTeamId,
-      awayTeamId: match.awayTeamId,
-      homeTeamName: match.homeTeamName,
-      awayTeamName: match.awayTeamName,
-      homeScore: match.homeScore,
-      awayScore: match.awayScore,
-    }];
+    return [
+      {
+        homeTeamId: match.homeTeamId,
+        awayTeamId: match.awayTeamId,
+        homeTeamName: match.homeTeamName,
+        awayTeamName: match.awayTeamName,
+        homeScore: match.homeScore,
+        awayScore: match.awayScore,
+      },
+    ];
   });
 
   const calculatedRows = calculateStandings(finishedMatches);

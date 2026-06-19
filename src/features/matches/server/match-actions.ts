@@ -13,6 +13,7 @@ import {
   buildMatchPairKey,
   buildSingleRoundRobinCalendar,
 } from "@/features/matches/server/generate-round-robin-calendar";
+import { getMatchParticipantValidationError } from "@/features/matches/server/match-result-guards";
 import { prisma } from "@/lib/prisma";
 
 import { revalidateTournamentPaths } from "@/features/tournaments/server/revalidate-tournament-paths";
@@ -121,6 +122,8 @@ export async function reportTournamentMatchResultAction(formData: FormData) {
   const match = await prisma.match.findUnique({
     where: { id: parsed.data.matchId },
     select: {
+      homeTeamId: true,
+      awayTeamId: true,
       tournament: {
         select: {
           slug: true,
@@ -137,12 +140,43 @@ export async function reportTournamentMatchResultAction(formData: FormData) {
     );
   }
 
+  const participantValidationError = getMatchParticipantValidationError(match);
+  const hasScoreInputs =
+    typeof parsed.data.homeScore === "number" || typeof parsed.data.awayScore === "number";
+
+  if ((parsed.data.status === "LIVE" || parsed.data.status === "FINAL" || hasScoreInputs) && participantValidationError) {
+    return redirectWithMessage(
+      `/dashboard/tournaments/${tournamentSlug}`,
+      "error",
+      participantValidationError,
+    );
+  }
+
+  if (parsed.data.status === "SCHEDULED" && hasScoreInputs) {
+    return redirectWithMessage(
+      `/dashboard/tournaments/${tournamentSlug}`,
+      "error",
+      "Per registrare un punteggio, imposta la partita come live o completata.",
+    );
+  }
+
   await prisma.match.update({
     where: { id: parsed.data.matchId },
     data: {
-      status: parsed.data.status === "FINAL" ? MatchStatus.FINAL : MatchStatus.SCHEDULED,
-      homeScore: parsed.data.status === "FINAL" ? parsed.data.homeScore ?? null : null,
-      awayScore: parsed.data.status === "FINAL" ? parsed.data.awayScore ?? null : null,
+      status:
+        parsed.data.status === "FINAL"
+          ? MatchStatus.FINAL
+          : parsed.data.status === "LIVE"
+            ? MatchStatus.LIVE
+            : MatchStatus.SCHEDULED,
+      homeScore:
+        parsed.data.status === "FINAL" || parsed.data.status === "LIVE"
+          ? parsed.data.homeScore ?? null
+          : null,
+      awayScore:
+        parsed.data.status === "FINAL" || parsed.data.status === "LIVE"
+          ? parsed.data.awayScore ?? null
+          : null,
     },
   });
 
@@ -248,7 +282,11 @@ export async function generateTournamentRoundRobinCalendarAction(formData: FormD
     });
 
     const existingPairKeys = new Set(
-      existingMatches.map((match) => buildMatchPairKey(match.homeTeamId, match.awayTeamId)),
+      existingMatches.flatMap((match) =>
+        match.homeTeamId && match.awayTeamId
+          ? [buildMatchPairKey(match.homeTeamId, match.awayTeamId)]
+          : [],
+      ),
     );
 
     const matchesToCreate = generatedMatches
@@ -465,7 +503,11 @@ export async function generateGroupStageMatchesAction(formData: FormData) {
     });
 
     const existingPairKeys = new Set(
-      existingMatches.map((match) => buildMatchPairKey(match.homeTeamId, match.awayTeamId)),
+      existingMatches.flatMap((match) =>
+        match.homeTeamId && match.awayTeamId
+          ? [buildMatchPairKey(match.homeTeamId, match.awayTeamId)]
+          : [],
+      ),
     );
 
     const matchesToCreate = generatedMatches

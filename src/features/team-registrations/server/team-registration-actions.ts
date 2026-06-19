@@ -7,12 +7,12 @@ import { z } from "zod";
 
 import { requireOwnerOrAdmin } from "@/features/auth/server/session";
 import {
-  buildCaptainManageUrl,
   generateCaptainManageToken,
   hashCaptainManageToken,
   storeDashboardCaptainManageLinkFlash,
   storeCaptainManageLinkFlash,
 } from "@/features/team-registrations/server/captain-manage-link";
+import { createPendingTeamRegistration } from "@/features/team-registrations/server/create-pending-team-registration.mjs";
 import {
   buildRegistrationApprovedEmail,
   buildRegistrationReceivedEmail,
@@ -230,43 +230,28 @@ export async function submitTeamRegistrationAction(formData: FormData) {
     );
   }
 
-  const captainManageToken = generateCaptainManageToken();
-
-  await prisma.teamRegistration.create({
-    data: {
-      tournamentId: tournament.id,
-      captainFirstName: parsed.data.captainFirstName,
-      captainLastName: parsed.data.captainLastName,
-      captainEmail: parsed.data.captainEmail,
-      captainPhone: parsed.data.captainPhone,
-      teamName: parsed.data.teamName,
-      notes: parsed.data.notes || null,
-      captainManageTokenHash: hashCaptainManageToken(captainManageToken),
-      captainManageTokenIssuedAt: new Date(),
-      players: {
-        create: parsed.data.players.map((player, index) => ({
-          firstName: player.firstName,
-          lastName: player.lastName,
-          jerseyNumber: player.jerseyNumber,
-          role: player.role || null,
-          sortOrder: index,
-        })),
-      },
-    },
+  const registration = await createPendingTeamRegistration({
+    tournamentId: tournament.id,
+    tournamentSlug,
+    captainFirstName: parsed.data.captainFirstName,
+    captainLastName: parsed.data.captainLastName,
+    captainEmail: parsed.data.captainEmail,
+    captainPhone: parsed.data.captainPhone,
+    teamName: parsed.data.teamName,
+    notes: parsed.data.notes,
+    players: parsed.data.players,
   });
-
-  const captainManageUrl = buildCaptainManageUrl(tournamentSlug, captainManageToken);
 
   await sendEmail({
     to: parsed.data.captainEmail,
     ...buildRegistrationReceivedEmail({
       captainFirstName: parsed.data.captainFirstName,
       teamName: parsed.data.teamName,
-      manageLink: captainManageUrl,
+      manageLink: registration.captainManageUrl,
     }),
   });
 
-  await storeCaptainManageLinkFlash(tournamentSlug, captainManageToken);
+  await storeCaptainManageLinkFlash(tournamentSlug, registration.captainManageToken);
 
   return redirectWithMessage(
     registrationPath,

@@ -16,11 +16,38 @@ enum TournamentFormat {
   ROUND_ROBIN
   KNOCKOUT
   GROUPS_PLUS_KNOCKOUT
+  SINGLE_ROUND_ROBIN
+  DOUBLE_ROUND_ROBIN
+  GROUPS_ONLY
+  GROUPS_THEN_KNOCKOUT
+  KNOCKOUT_ONLY
 }
 
 enum MatchStatus {
   SCHEDULED
+  LIVE
   FINAL
+}
+
+enum TournamentStageType {
+  GROUP_STAGE
+  KNOCKOUT_STAGE
+}
+
+enum KnockoutRound {
+  ROUND_OF_32
+  ROUND_OF_16
+  QUARTER_FINAL
+  SEMI_FINAL
+  FINAL
+  THIRD_PLACE
+}
+
+enum MatchParticipantSourceType {
+  DIRECT_TEAM
+  GROUP_POSITION
+  MATCH_WINNER
+  MATCH_LOSER
 }
 
 enum TeamRegistrationStatus {
@@ -64,14 +91,20 @@ model Tournament {
   locationLabel String?
   format        TournamentFormat @default(ROUND_ROBIN)
   status        TournamentStatus @default(DRAFT)
+  expectedTeamCount Int?
   startsAt      DateTime?
   endsAt        DateTime?
+  scheduleStartDate DateTime?
+  scheduleMaxMatchesPerDay Int?
+  scheduleMinimumRestDays Int? @default(0)
   publishedAt   DateTime?
   createdAt     DateTime         @default(now())
   updatedAt     DateTime         @updatedAt
   organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   teams         TournamentTeam[]
   groups        TournamentGroup[]
+  stages        TournamentStage[]
+  scheduleSlots TournamentScheduleSlot[]
   matches       Match[]
   registrations TeamRegistration[]
 
@@ -92,6 +125,8 @@ model Team {
   registrations  TeamRegistration[]
   homeMatches    Match[]          @relation("MatchHomeTeam")
   awayMatches    Match[]          @relation("MatchAwayTeam")
+  homeSourceMatches Match[]       @relation("MatchHomeSourceTeam")
+  awaySourceMatches Match[]       @relation("MatchAwaySourceTeam")
 
   @@unique([organizationId, slug])
   @@index([organizationId])
@@ -116,19 +151,64 @@ model TournamentTeam {
   @@unique([groupId, groupSlot])
 }
 
+model TournamentStage {
+  id                    String              @id @default(cuid())
+  tournamentId          String
+  order                 Int
+  type                  TournamentStageType
+  name                  String
+  isPublic              Boolean             @default(true)
+  groupCount            Int?
+  teamsPerGroup         Int?
+  legs                  Int?
+  qualifiersPerGroup    Int?
+  knockoutTeamCount     Int?
+  knockoutRound         KnockoutRound?
+  includeThirdPlaceMatch Boolean?
+  stageBreakDaysAfter   Int?                @default(0)
+  configuration         Json?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  tournament            Tournament          @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  groups                TournamentGroup[]
+  matches               Match[]
+
+  @@index([tournamentId, order])
+  @@unique([tournamentId, order])
+}
+
 model TournamentGroup {
   id           String           @id @default(cuid())
   tournamentId String
+  stageId      String?
   name         String
   sequence     Int
   createdAt    DateTime         @default(now())
   updatedAt    DateTime         @updatedAt
   tournament   Tournament       @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stage        TournamentStage? @relation(fields: [stageId], references: [id], onDelete: Cascade)
   teams        TournamentTeam[]
   matches      Match[]
+  homeSourceMatches Match[]     @relation("MatchHomeSourceGroup")
+  awaySourceMatches Match[]     @relation("MatchAwaySourceGroup")
 
   @@index([tournamentId])
+  @@index([stageId])
   @@unique([tournamentId, name])
+  @@unique([tournamentId, sequence])
+}
+
+model TournamentScheduleSlot {
+  id              String     @id @default(cuid())
+  tournamentId    String
+  sequence        Int
+  startMinutes    Int
+  durationMinutes Int
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  tournament      Tournament @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+
+  @@index([tournamentId])
   @@unique([tournamentId, sequence])
 }
 
@@ -212,11 +292,26 @@ model TeamRegistrationPlayer {
 model Match {
   id            String      @id @default(cuid())
   tournamentId  String
+  stageId       String?
   groupId       String?
-  homeTeamId    String
-  awayTeamId    String
+  sequence      Int?
+  homeTeamId    String?
+  awayTeamId    String?
+  homeParticipantSourceType MatchParticipantSourceType?
+  awayParticipantSourceType MatchParticipantSourceType?
+  homeSourceTeamId String?
+  awaySourceTeamId String?
+  homeSourceGroupId String?
+  awaySourceGroupId String?
+  homeSourceGroupPosition Int?
+  awaySourceGroupPosition Int?
+  homeSourceMatchId String?
+  awaySourceMatchId String?
+  homeParticipantLocked Boolean @default(false)
+  awayParticipantLocked Boolean @default(false)
   roundLabel    String?
   startsAt      DateTime?
+  endsAt        DateTime?
   locationLabel String?
   status        MatchStatus @default(SCHEDULED)
   homeScore     Int?
@@ -224,16 +319,30 @@ model Match {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
+  stage         TournamentStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
   group         TournamentGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  homeTeam      Team        @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
-  awayTeam      Team        @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  homeTeam      Team?       @relation("MatchHomeTeam", fields: [homeTeamId], references: [id], onDelete: Restrict)
+  awayTeam      Team?       @relation("MatchAwayTeam", fields: [awayTeamId], references: [id], onDelete: Restrict)
+  homeSourceTeam Team?      @relation("MatchHomeSourceTeam", fields: [homeSourceTeamId], references: [id], onDelete: SetNull)
+  awaySourceTeam Team?      @relation("MatchAwaySourceTeam", fields: [awaySourceTeamId], references: [id], onDelete: SetNull)
+  homeSourceGroup TournamentGroup? @relation("MatchHomeSourceGroup", fields: [homeSourceGroupId], references: [id], onDelete: SetNull)
+  awaySourceGroup TournamentGroup? @relation("MatchAwaySourceGroup", fields: [awaySourceGroupId], references: [id], onDelete: SetNull)
+  homeSourceMatch Match?    @relation("MatchHomeSourceMatch", fields: [homeSourceMatchId], references: [id], onDelete: SetNull)
+  awaySourceMatch Match?    @relation("MatchAwaySourceMatch", fields: [awaySourceMatchId], references: [id], onDelete: SetNull)
+  dependentHomeMatches Match[] @relation("MatchHomeSourceMatch")
+  dependentAwayMatches Match[] @relation("MatchAwaySourceMatch")
 
   @@index([tournamentId])
+  @@index([stageId])
   @@index([groupId])
   @@index([tournamentId, status])
   @@index([tournamentId, groupId])
   @@index([tournamentId, groupId, status])
   @@index([tournamentId, startsAt])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+  @@index([homeSourceMatchId])
+  @@index([awaySourceMatchId])
 }
 
 model User {

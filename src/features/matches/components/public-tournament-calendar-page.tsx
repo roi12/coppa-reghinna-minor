@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { listTournamentMatches } from "@/features/matches/server/list-tournament-matches";
+import { filterPublicTournamentMatches } from "@/features/matches/server/public-match-visibility";
 import { getTournamentBySlug } from "@/features/tournaments/server/get-tournament-by-slug";
 
 import { TournamentMatchList } from "./tournament-match-list";
@@ -18,9 +19,9 @@ export async function PublicTournamentCalendarPage({
     notFound();
   }
 
-  const matches = await listTournamentMatches(tournament.id);
+  const matches = filterPublicTournamentMatches(await listTournamentMatches(tournament.id));
   const completedMatches = matches.filter((match) => match.status === "FINAL");
-  const scheduledMatches = matches.filter((match) => match.status === "SCHEDULED");
+  const scheduledMatches = matches.filter((match) => match.status !== "FINAL");
 
   return (
     <div className="grid gap-6">

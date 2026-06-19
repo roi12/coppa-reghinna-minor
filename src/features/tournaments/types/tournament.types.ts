@@ -24,4 +24,5 @@ export type TournamentPublicListItem = TournamentSummary & {
 export type TournamentPublicDetail = TournamentPublicListItem & {
   publishedAt: Date | null;
   completedMatchCount: number;
+  knockoutStageIsPublic: boolean | null;
 };

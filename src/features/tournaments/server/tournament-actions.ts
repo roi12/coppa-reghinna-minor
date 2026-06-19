@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { requireOwnerOrAdmin } from "@/features/auth/server/session";
 import { createTournamentSchema } from "@/features/tournaments/schemas/create-tournament.schema";
 import { updateTournamentSchema } from "@/features/tournaments/schemas/update-tournament.schema";
+import { rethrowIfNextRedirectError } from "@/lib/redirect-error";
 import { prisma } from "@/lib/prisma";
 
 import { revalidateTournamentPaths } from "./revalidate-tournament-paths";
@@ -78,6 +79,8 @@ export async function createTournamentAction(formData: FormData) {
       "Tournament created.",
     );
   } catch (error) {
+    rethrowIfNextRedirectError(error);
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return redirectWithMessage(
         "/dashboard/tournaments/new",
@@ -155,6 +158,8 @@ export async function updateTournamentAction(formData: FormData) {
       "Tournament updated.",
     );
   } catch (error) {
+    rethrowIfNextRedirectError(error);
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return redirectWithMessage(
         `/dashboard/tournaments/${parsed.data.currentSlug}`,

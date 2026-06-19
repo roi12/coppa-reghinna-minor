@@ -1,54 +1,67 @@
 import type {
-  GroupStageDefinition,
-  GroupsPlusKnockoutDefinition,
-  KnockoutBracketDefinition,
+  PersistedTournamentFormatValue,
   TournamentFormatValue,
 } from "@/features/tournaments/types/tournament-format.types";
 
 const TOURNAMENT_FORMAT_LABELS: Record<TournamentFormatValue, string> = {
-  ROUND_ROBIN: "Girone unico",
-  KNOCKOUT: "Eliminazione diretta",
-  GROUPS_PLUS_KNOCKOUT: "Gironi + eliminazione diretta",
+  SINGLE_ROUND_ROBIN: "Girone unico",
+  DOUBLE_ROUND_ROBIN: "Girone unico andata e ritorno",
+  GROUPS_ONLY: "Solo gironi",
+  GROUPS_THEN_KNOCKOUT: "Gironi + eliminazione diretta",
+  KNOCKOUT_ONLY: "Eliminazione diretta",
 };
 
 const TOURNAMENT_FORMAT_DESCRIPTIONS: Record<TournamentFormatValue, string> = {
-  ROUND_ROBIN: "Each team plays every other team once in a single league table.",
-  KNOCKOUT: "Teams advance through elimination rounds toward a final bracket.",
-  GROUPS_PLUS_KNOCKOUT:
-    "Teams start in groups before the top finishers advance into knockout rounds.",
+  SINGLE_ROUND_ROBIN: "Each team plays every other team once in a single league table.",
+  DOUBLE_ROUND_ROBIN: "Each team plays every other team twice, home and away.",
+  GROUPS_ONLY: "Teams are split into groups and play only the configured group stage.",
+  GROUPS_THEN_KNOCKOUT: "Teams start in groups before the top finishers advance into knockout rounds.",
+  KNOCKOUT_ONLY: "Teams advance through elimination rounds toward a final bracket.",
 };
 
-export const EMPTY_KNOCKOUT_BRACKET_FOUNDATION: KnockoutBracketDefinition = {
-  format: "KNOCKOUT",
-  thirdPlaceMatch: false,
-  rounds: [],
-  seedingNotes: [],
-};
-
-export const EMPTY_GROUP_STAGE_FOUNDATION: GroupStageDefinition[] = [];
-
-export const EMPTY_GROUPS_PLUS_KNOCKOUT_FOUNDATION: GroupsPlusKnockoutDefinition = {
-  format: "GROUPS_PLUS_KNOCKOUT",
-  groups: EMPTY_GROUP_STAGE_FOUNDATION,
-  knockoutRounds: [],
-  qualificationRules: [],
-};
-
-export function getTournamentFormatLabel(format: TournamentFormatValue) {
-  return TOURNAMENT_FORMAT_LABELS[format];
-}
-
-export function getTournamentFormatDescription(format: TournamentFormatValue) {
-  return TOURNAMENT_FORMAT_DESCRIPTIONS[format];
-}
-
-export function getTournamentFormatDashboardMessage(format: TournamentFormatValue) {
+export function normalizeTournamentFormat(
+  format: PersistedTournamentFormatValue,
+): TournamentFormatValue {
   switch (format) {
     case "ROUND_ROBIN":
-      return "Calendar generation is available now for this format.";
+      return "SINGLE_ROUND_ROBIN";
     case "KNOCKOUT":
-      return "Knockout bracket generation is coming soon. Manual match entry remains available.";
+      return "KNOCKOUT_ONLY";
     case "GROUPS_PLUS_KNOCKOUT":
-      return "Group-stage generation is available after groups are configured. Knockout-stage generation is coming later. Manual match entry remains available.";
+      return "GROUPS_THEN_KNOCKOUT";
+    default:
+      return format;
   }
+}
+
+export function getTournamentFormatLabel(format: PersistedTournamentFormatValue) {
+  return TOURNAMENT_FORMAT_LABELS[normalizeTournamentFormat(format)];
+}
+
+export function getTournamentFormatDescription(format: PersistedTournamentFormatValue) {
+  return TOURNAMENT_FORMAT_DESCRIPTIONS[normalizeTournamentFormat(format)];
+}
+
+export function getTournamentFormatDashboardMessage(format: PersistedTournamentFormatValue) {
+  switch (normalizeTournamentFormat(format)) {
+    case "SINGLE_ROUND_ROBIN":
+    case "DOUBLE_ROUND_ROBIN":
+      return "Competition generation and calendar scheduling are available for league-style tournaments.";
+    case "GROUPS_ONLY":
+      return "Configure the group stage, assign teams, and generate only the group fixtures.";
+    case "GROUPS_THEN_KNOCKOUT":
+      return "Configure groups, qualification, and knockout structure before generating and scheduling the competition.";
+    case "KNOCKOUT_ONLY":
+      return "Knockout structure and scheduling are available once the tournament format is fully configured.";
+  }
+}
+
+export function isGroupedTournamentFormat(format: PersistedTournamentFormatValue) {
+  const normalized = normalizeTournamentFormat(format);
+  return normalized === "GROUPS_ONLY" || normalized === "GROUPS_THEN_KNOCKOUT";
+}
+
+export function isKnockoutTournamentFormat(format: PersistedTournamentFormatValue) {
+  const normalized = normalizeTournamentFormat(format);
+  return normalized === "GROUPS_THEN_KNOCKOUT" || normalized === "KNOCKOUT_ONLY";
 }

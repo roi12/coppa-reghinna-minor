@@ -23,6 +23,7 @@ export function DashboardMatchResultsPanel({
     <div className="mt-5 grid w-full max-w-full min-w-0 gap-4">
       {matches.map((match) => {
         const isCompleted = match.status === "FINAL";
+        const isLive = match.status === "LIVE";
 
         return (
           <section
@@ -43,10 +44,12 @@ export function DashboardMatchResultsPanel({
                 className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
                   isCompleted
                     ? "bg-emerald-100 text-emerald-800"
-                    : "bg-amber-100 text-amber-800"
+                    : isLive
+                      ? "bg-sky-100 text-sky-800"
+                      : "bg-amber-100 text-amber-800"
                 }`}
               >
-                {isCompleted ? "Completed" : "Scheduled"}
+                {isCompleted ? "Completed" : isLive ? "In corso" : "Scheduled"}
               </span>
             </div>
 
@@ -79,14 +82,15 @@ export function DashboardMatchResultsPanel({
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
                   Match status
                   <select
-                    name="status"
-                    defaultValue={match.status}
-                    className="w-full max-w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
-                  >
-                    <option value="SCHEDULED">Scheduled</option>
-                    <option value="FINAL">Completed</option>
-                  </select>
-                </label>
+                  name="status"
+                  defaultValue={match.status}
+                  className="w-full max-w-full min-w-0 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900"
+                >
+                  <option value="SCHEDULED">Scheduled</option>
+                  <option value="LIVE">In corso</option>
+                  <option value="FINAL">Completed</option>
+                </select>
+              </label>
                 <label className="grid min-w-0 gap-2 text-sm font-medium text-slate-700">
                   Home score
                   <input
@@ -116,7 +120,7 @@ export function DashboardMatchResultsPanel({
               </div>
 
               <p className="text-sm text-slate-500">
-                Set a match to completed to record its result and update public standings.
+                Imposta la partita come in corso o completata per registrare il punteggio e aggiornare la vista pubblica.
               </p>
             </form>
           </section>

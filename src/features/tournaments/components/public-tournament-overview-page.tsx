@@ -3,9 +3,12 @@ import { notFound } from "next/navigation";
 
 import { TournamentMatchList } from "@/features/matches/components/tournament-match-list";
 import { listTournamentMatches } from "@/features/matches/server/list-tournament-matches";
+import { filterPublicTournamentMatches } from "@/features/matches/server/public-match-visibility";
 import { StandingsTable } from "@/features/standings/components/standings-table";
+import { getTournamentGroupStandings } from "@/features/standings/server/get-tournament-group-standings";
 import { getTournamentStandings } from "@/features/standings/server/get-tournament-standings";
 import { getTournamentBySlug } from "@/features/tournaments/server/get-tournament-by-slug";
+import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { BRAND } from "@/lib/brand";
 
 type PublicTournamentOverviewPageProps = {
@@ -21,13 +24,15 @@ export async function PublicTournamentOverviewPage({
     notFound();
   }
 
-  const [matches, standings] = await Promise.all([
+  const isGroupedTournament = isGroupedTournamentFormat(tournament.format);
+  const [matches, standings, groupStandings] = await Promise.all([
     listTournamentMatches(tournament.id),
-    getTournamentStandings(tournament.id),
+    isGroupedTournament ? Promise.resolve([]) : getTournamentStandings(tournament.id),
+    isGroupedTournament ? getTournamentGroupStandings(tournament.id) : Promise.resolve([]),
   ]);
-
-  const completedMatches = matches.filter((match) => match.status === "FINAL");
-  const upcomingMatches = matches.filter((match) => match.status === "SCHEDULED");
+  const publicMatches = filterPublicTournamentMatches(matches);
+  const completedMatches = publicMatches.filter((match) => match.status === "FINAL");
+  const upcomingMatches = publicMatches.filter((match) => match.status !== "FINAL");
 
   return (
     <div className="grid gap-6">
@@ -109,13 +114,15 @@ export async function PublicTournamentOverviewPage({
             {tournament.completedMatchCount}
           </p>
         </article>
-        <article className="rounded-[1.75rem] border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Attività partite</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{matches.length}</p>
-        </article>
+          <article className="rounded-[1.75rem] border border-slate-300 bg-white p-5 shadow-sm">
+            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Attività partite</p>
+            <p className="mt-2 text-3xl font-semibold text-slate-950">{publicMatches.length}</p>
+          </article>
         <article className="rounded-[1.75rem] border border-slate-300 bg-white p-5 shadow-sm">
           <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Voci in classifica</p>
-          <p className="mt-2 text-3xl font-semibold text-slate-950">{standings.length}</p>
+          <p className="mt-2 text-3xl font-semibold text-slate-950">
+            {isGroupedTournament ? groupStandings.length : standings.length}
+          </p>
         </article>
       </section>
 
@@ -172,7 +179,9 @@ export async function PublicTournamentOverviewPage({
                 Classifica
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Ordinata con le regole standard: punti, differenza reti, gol fatti e nome squadra.
+                {isGroupedTournament
+                  ? "Per i tornei a gironi la classifica completa e le qualificazioni sono disponibili nella pagina dedicata."
+                  : "Ordinata con le regole standard: punti, differenza reti, gol fatti e nome squadra."}
               </p>
             </div>
             <Link
@@ -184,10 +193,17 @@ export async function PublicTournamentOverviewPage({
           </div>
 
           <div className="mt-5">
-            <StandingsTable
-              rows={standings}
-              emptyMessage="La classifica comparirà appena saranno disponibili risultati finali."
-            />
+            {isGroupedTournament ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-600">
+                Le classifiche dei gironi e le qualificazioni alla fase finale sono pubblicate nella
+                pagina completa della classifica.
+              </div>
+            ) : (
+              <StandingsTable
+                rows={standings}
+                emptyMessage="La classifica comparirà appena saranno disponibili risultati finali."
+              />
+            )}
           </div>
         </div>
       </section>

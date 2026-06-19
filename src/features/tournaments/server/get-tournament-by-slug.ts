@@ -1,7 +1,9 @@
 import { MatchStatus, TournamentStatus } from "@prisma/client";
 import { cache } from "react";
 
+import { getKnockoutStageVisibilityState } from "@/features/tournaments/server/tournament-stage-visibility";
 import type { TournamentPublicDetail } from "@/features/tournaments/types/tournament.types";
+import { normalizeTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { prisma } from "@/lib/prisma";
 
 export const getTournamentBySlug = cache(
@@ -21,6 +23,13 @@ export const getTournamentBySlug = cache(
         endsAt: true,
         status: true,
         publishedAt: true,
+        stages: {
+          select: {
+            id: true,
+            type: true,
+            isPublic: true,
+          },
+        },
         organization: {
           select: {
             slug: true,
@@ -30,7 +39,6 @@ export const getTournamentBySlug = cache(
         _count: {
           select: {
             teams: true,
-            matches: true,
           },
         },
       },
@@ -40,12 +48,42 @@ export const getTournamentBySlug = cache(
       return null;
     }
 
-    const completedMatchCount = await prisma.match.count({
-      where: {
-        tournamentId: tournament.id,
-        status: MatchStatus.FINAL,
-      },
-    });
+    const publicStageIds = tournament.stages
+      .filter((stage) => stage.isPublic)
+      .map((stage) => stage.id);
+
+    const visibleMatchWhere =
+      publicStageIds.length > 0
+        ? {
+            tournamentId: tournament.id,
+            OR: [
+              {
+                stageId: null,
+              },
+              {
+                stageId: {
+                  in: publicStageIds,
+                },
+              },
+            ],
+          }
+        : {
+            tournamentId: tournament.id,
+            stageId: null,
+          };
+
+    const [matchCount, completedMatchCount] = await Promise.all([
+      prisma.match.count({
+        where: visibleMatchWhere,
+      }),
+      prisma.match.count({
+        where: {
+          ...visibleMatchWhere,
+          status: MatchStatus.FINAL,
+        },
+      }),
+    ]);
+    const visibility = getKnockoutStageVisibilityState(tournament.stages);
 
     return {
       id: tournament.id,
@@ -54,7 +92,7 @@ export const getTournamentBySlug = cache(
       slug: tournament.slug,
       sport: tournament.sport,
       seasonLabel: tournament.seasonLabel,
-      format: tournament.format,
+      format: normalizeTournamentFormat(tournament.format),
       locationLabel: tournament.locationLabel,
       startsAt: tournament.startsAt,
       endsAt: tournament.endsAt,
@@ -63,8 +101,9 @@ export const getTournamentBySlug = cache(
       organizationName: tournament.organization.name,
       organizationSlug: tournament.organization.slug,
       teamCount: tournament._count.teams,
-      matchCount: tournament._count.matches,
+      matchCount,
       completedMatchCount,
+      knockoutStageIsPublic: visibility.knockoutStageIsPublic,
     };
   },
 );

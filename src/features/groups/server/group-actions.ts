@@ -1,14 +1,19 @@
 "use server";
 
-import { TournamentFormat } from "@prisma/client";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 import { requireOwnerOrAdmin } from "@/features/auth/server/session";
 import { configureTournamentGroupsSchema } from "@/features/groups/schemas/configure-tournament-groups.schema";
 import { saveTournamentGroupAssignmentsSchema } from "@/features/groups/schemas/save-tournament-group-assignments.schema";
+import {
+  getGroupAssignmentValidationMessage,
+  readGroupAssignmentsFromFormData,
+  readRequiredFormValue,
+} from "@/features/groups/server/group-assignment-form";
 import { buildGroupDistributionPlan } from "@/features/groups/utils/build-group-distribution-plan";
 import { revalidateTournamentPaths } from "@/features/tournaments/server/revalidate-tournament-paths";
+import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
+import { rethrowIfNextRedirectError } from "@/lib/redirect-error";
 import { prisma } from "@/lib/prisma";
 
 function redirectWithMessage(path: string, type: "success" | "error", message: string): never {
@@ -18,51 +23,6 @@ function redirectWithMessage(path: string, type: "success" | "error", message: s
   });
 
   redirect(`${path}?${searchParams.toString()}`);
-}
-
-function readRequiredFormValue(formData: FormData, key: string) {
-  const value = formData.get(key);
-
-  return typeof value === "string" ? value : "";
-}
-
-function readAssignmentFieldValues(formData: FormData, key: string) {
-  return formData.getAll(key).map((value) => (typeof value === "string" ? value : ""));
-}
-
-function readGroupAssignmentsFromFormData(formData: FormData) {
-  const tournamentTeamIds = readAssignmentFieldValues(formData, "tournamentTeamId");
-  const groupIds = readAssignmentFieldValues(formData, "assignmentGroupId");
-  const groupSlots = readAssignmentFieldValues(formData, "assignmentGroupSlot");
-
-  if (
-    tournamentTeamIds.length !== groupIds.length ||
-    tournamentTeamIds.length !== groupSlots.length
-  ) {
-    return null;
-  }
-
-  return tournamentTeamIds.map((tournamentTeamId, index) => ({
-    tournamentTeamId,
-    groupId: groupIds[index],
-    groupSlot: groupIds[index].trim().length === 0 ? null : groupSlots[index],
-  }));
-}
-
-function getGroupAssignmentValidationMessage(error: z.ZodError) {
-  const issue = error.issues[0];
-
-  if (!issue) {
-    return "Enter valid group assignments.";
-  }
-
-  const assignmentIndex = issue.path.find((segment) => typeof segment === "number");
-
-  if (typeof assignmentIndex === "number") {
-    return `Team ${assignmentIndex + 1}: ${issue.message}`;
-  }
-
-  return issue.message;
 }
 
 export async function configureTournamentGroupsAction(formData: FormData) {
@@ -95,8 +55,8 @@ export async function configureTournamentGroupsAction(formData: FormData) {
         throw new Error("Tournament not found.");
       }
 
-      if (tournament.format !== TournamentFormat.GROUPS_PLUS_KNOCKOUT) {
-        throw new Error("Groups can only be configured for groups plus knockout tournaments.");
+      if (!isGroupedTournamentFormat(tournament.format)) {
+        throw new Error("Groups can only be configured for grouped tournaments.");
       }
 
       const tournamentTeams = await transaction.tournamentTeam.findMany({
@@ -198,6 +158,8 @@ export async function configureTournamentGroupsAction(formData: FormData) {
         : "Groups created and teams assigned.",
     );
   } catch (error) {
+    rethrowIfNextRedirectError(error);
+
     if (error instanceof Error) {
       return redirectWithMessage(dashboardPath, "error", error.message);
     }
@@ -210,14 +172,6 @@ export async function saveTournamentGroupAssignmentsAction(formData: FormData) {
   await requireOwnerOrAdmin();
 
   const assignments = readGroupAssignmentsFromFormData(formData);
-
-  if (!assignments) {
-    return redirectWithMessage(
-      "/dashboard",
-      "error",
-      "Group assignments could not be read. Review the table and try again.",
-    );
-  }
 
   const parsed = saveTournamentGroupAssignmentsSchema.safeParse({
     tournamentId: readRequiredFormValue(formData, "tournamentId"),
@@ -254,8 +208,8 @@ export async function saveTournamentGroupAssignmentsAction(formData: FormData) {
         throw new Error("Tournament not found.");
       }
 
-      if (tournament.format !== TournamentFormat.GROUPS_PLUS_KNOCKOUT) {
-        throw new Error("Groups can only be managed for groups plus knockout tournaments.");
+      if (!isGroupedTournamentFormat(tournament.format)) {
+        throw new Error("Groups can only be managed for grouped tournaments.");
       }
 
       const [tournamentTeams, tournamentGroups] = await Promise.all([
@@ -331,6 +285,8 @@ export async function saveTournamentGroupAssignmentsAction(formData: FormData) {
       "Manual group assignments saved.",
     );
   } catch (error) {
+    rethrowIfNextRedirectError(error);
+
     if (error instanceof Error) {
       return redirectWithMessage(dashboardPath, "error", error.message);
     }
