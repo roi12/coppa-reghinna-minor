@@ -290,7 +290,7 @@ test("protected-match guard blocks live, final, and scored matches", () => {
     true,
   );
   assert.equal(
-    hasProtectedMatches([{ status: MatchStatus.FINAL, homeScore: 3, awayScore: 1 }]),
+    hasProtectedMatches([{ status: MatchStatus.FINISHED, homeScore: 3, awayScore: 1 }]),
     true,
   );
 });

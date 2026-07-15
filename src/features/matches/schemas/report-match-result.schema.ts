@@ -10,11 +10,11 @@ const optionalScoreSchema = z.preprocess((value) => {
 
 export const reportMatchResultSchema = z.object({
   matchId: z.string().cuid(),
-  status: z.enum(["SCHEDULED", "LIVE", "FINAL"]),
+  status: z.enum(["SCHEDULED", "LIVE", "FINISHED", "POSTPONED", "CANCELLED"]),
   homeScore: optionalScoreSchema,
   awayScore: optionalScoreSchema,
 }).superRefine((value, context) => {
-  if (value.status === "FINAL") {
+  if (value.status === "FINISHED") {
     if (typeof value.homeScore !== "number") {
       context.addIssue({
         code: z.ZodIssueCode.custom,

@@ -205,8 +205,8 @@ function buildMatchWriteData(
     endsAt: null,
     locationLabel: null,
     status: MatchStatus.SCHEDULED,
-    homeScore: null,
-    awayScore: null,
+    homeScore: 0,
+    awayScore: 0,
   };
 
   const applySource = (
@@ -1021,7 +1021,7 @@ export async function resolveTournamentKnockoutParticipantsAction(formData: Form
     for (const group of groups) {
       const allGroupMatchesCompleted = group.matches.every(
         (match) =>
-          match.status === MatchStatus.FINAL &&
+          match.status === MatchStatus.FINISHED &&
           match.homeScore !== null &&
           match.awayScore !== null &&
           match.homeTeamId !== null &&
@@ -1130,7 +1130,7 @@ export async function resolveTournamentKnockoutParticipantsAction(formData: Form
           (sourceType === MatchParticipantSourceType.MATCH_WINNER ||
             sourceType === MatchParticipantSourceType.MATCH_LOSER) &&
           sourceMatch &&
-          sourceMatch.status === MatchStatus.FINAL &&
+          sourceMatch.status === MatchStatus.FINISHED &&
           sourceMatch.homeScore !== null &&
           sourceMatch.awayScore !== null &&
           sourceMatch.homeTeamId &&

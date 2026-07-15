@@ -87,7 +87,7 @@ export type ManualQualificationResolutionPlan = Array<{
 
 function hasCompletedGroupMatch(match: QualificationGroupMatch) {
   return (
-    match.status === MatchStatus.FINAL &&
+    match.status === MatchStatus.FINISHED &&
     match.homeScore !== null &&
     match.awayScore !== null &&
     match.homeTeamId !== null &&

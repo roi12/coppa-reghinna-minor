@@ -19,10 +19,14 @@ function buildMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
     roundLabel: "Round 1",
     startsAt: new Date(Date.UTC(2026, 6, 14, 22, 0, 0)),
     endsAt: new Date(Date.UTC(2026, 6, 14, 23, 0, 0)),
+    liveStartedAt: null,
+    finishedAt: null,
+    lastScoreUpdatedAt: null,
+    scoreVersion: 0,
     locationLabel: null,
     status: "SCHEDULED",
-    homeScore: null,
-    awayScore: null,
+    homeScore: 0,
+    awayScore: 0,
     ...overrides,
   };
 }

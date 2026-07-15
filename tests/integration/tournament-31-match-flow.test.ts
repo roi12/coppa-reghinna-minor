@@ -173,8 +173,8 @@ function buildMatchWriteData(
     endsAt: null,
     locationLabel: null,
     status: MatchStatus.SCHEDULED,
-    homeScore: null,
-    awayScore: null,
+    homeScore: 0,
+    awayScore: 0,
   };
 
   const applySource = (side: "home" | "away", source: typeof match.home) => {
@@ -239,7 +239,10 @@ async function applyMatchResult(matchId: string, status: MatchStatus, homeScore:
   const participantValidationError = getMatchParticipantValidationError(match);
   const hasScoreInputs = typeof homeScore === "number" || typeof awayScore === "number";
 
-  if ((status === MatchStatus.LIVE || status === MatchStatus.FINAL || hasScoreInputs) && participantValidationError) {
+  if (
+    (status === MatchStatus.LIVE || status === MatchStatus.FINISHED || hasScoreInputs) &&
+    participantValidationError
+  ) {
     throw new Error(participantValidationError);
   }
 
@@ -251,8 +254,8 @@ async function applyMatchResult(matchId: string, status: MatchStatus, homeScore:
     where: { id: matchId },
     data: {
       status,
-      homeScore: status === MatchStatus.LIVE || status === MatchStatus.FINAL ? homeScore : null,
-      awayScore: status === MatchStatus.LIVE || status === MatchStatus.FINAL ? awayScore : null,
+      homeScore: status === MatchStatus.LIVE || status === MatchStatus.FINISHED ? homeScore : 0,
+      awayScore: status === MatchStatus.LIVE || status === MatchStatus.FINISHED ? awayScore : 0,
     },
   });
 }
@@ -1021,7 +1024,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
   const unresolvedMatch = persistedMatches.find((match) => match.roundLabel === "QF1");
   assert(unresolvedMatch);
   await assert.rejects(
-    () => applyMatchResult(unresolvedMatch.id, MatchStatus.FINAL, 2, 0),
+    () => applyMatchResult(unresolvedMatch.id, MatchStatus.FINISHED, 2, 0),
     /La partita deve avere entrambe le squadre assegnate/i,
   );
 
@@ -1037,7 +1040,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
 
     await applyMatchResult(
       match.id,
-      MatchStatus.FINAL,
+      MatchStatus.FINISHED,
       homeWins ? 3 : 0,
       homeWins ? 0 : 3,
     );
@@ -1160,14 +1163,14 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
       startsAt: null,
       endsAt: null,
       locationLabel: null,
-      homeScore: null,
-      awayScore: null,
+      homeScore: 0,
+      awayScore: 0,
     },
     select: { id: true },
   });
 
   await assert.rejects(
-    () => applyMatchResult(temporaryPartialMatch.id, MatchStatus.FINAL, 1, 0),
+    () => applyMatchResult(temporaryPartialMatch.id, MatchStatus.FINISHED, 1, 0),
     /La partita deve avere entrambe le squadre assegnate/i,
   );
 
@@ -1188,14 +1191,14 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
       startsAt: null,
       endsAt: null,
       locationLabel: null,
-      homeScore: null,
-      awayScore: null,
+      homeScore: 0,
+      awayScore: 0,
     },
     select: { id: true },
   });
 
   await assert.rejects(
-    () => applyMatchResult(temporarySelfMatch.id, MatchStatus.FINAL, 1, 0),
+    () => applyMatchResult(temporarySelfMatch.id, MatchStatus.FINISHED, 1, 0),
     /due squadre diverse/i,
   );
 
@@ -1210,7 +1213,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
     const [homeScore, awayScore] = qfResultMap.get(qf.roundLabel as "QF1" | "QF2" | "QF3" | "QF4") ?? [2, 0];
     await applyMatchResult(
       qf.id,
-      MatchStatus.FINAL,
+      MatchStatus.FINISHED,
       homeScore,
       awayScore,
     );
@@ -1254,7 +1257,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
   );
 
   for (const semifinal of semifinalMatches) {
-    await applyMatchResult(semifinal.id, MatchStatus.FINAL, 3, 1);
+    await applyMatchResult(semifinal.id, MatchStatus.FINISHED, 3, 1);
   }
 
   await resolveKnockoutParticipantsFromResults(fixture);
@@ -1287,7 +1290,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
   assert.equal(finalMatch.homeTeamId !== finalMatch.awayTeamId, true);
   assert.deepEqual([finalMatch.homeTeam?.name, finalMatch.awayTeam?.name], ["Integration A1", "Integration A2"]);
 
-  await applyMatchResult(finalMatch.id, MatchStatus.FINAL, 4, 2);
+  await applyMatchResult(finalMatch.id, MatchStatus.FINISHED, 4, 2);
 
   const completedFinal = await prisma.match.findUnique({
     where: { id: finalMatch.id },
@@ -1301,7 +1304,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
   });
 
   assert.deepEqual(completedFinal, {
-    status: MatchStatus.FINAL,
+    status: MatchStatus.FINISHED,
     homeScore: 4,
     awayScore: 2,
     homeTeamId: finalMatch.homeTeamId,
@@ -1339,7 +1342,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
   const finalCount = await prisma.match.count({
     where: {
       tournamentId: fixture.tournamentId,
-      status: MatchStatus.FINAL,
+      status: MatchStatus.FINISHED,
     },
   });
 

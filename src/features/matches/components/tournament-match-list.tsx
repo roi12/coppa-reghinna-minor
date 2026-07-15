@@ -1,3 +1,5 @@
+import { TeamMark } from "@/components/ui/team-mark";
+import { MatchLiveIndicator } from "@/features/matches/components/match-live-indicator";
 import type { MatchSummary } from "@/features/matches/types/match.types";
 import { formatDateTimeLabel } from "@/lib/format-date";
 
@@ -25,11 +27,13 @@ export function TournamentMatchList({
         <article
           key={match.id}
           className={`rounded-[1.75rem] border p-4 shadow-sm transition-colors sm:p-5 ${
-            match.status === "FINAL"
+            match.status === "FINISHED"
               ? "border-emerald-200 bg-[linear-gradient(180deg,#ffffff_0%,#f0fdf4_100%)]"
               : match.status === "LIVE"
-                ? "border-sky-200 bg-[linear-gradient(180deg,#ffffff_0%,#eff6ff_100%)]"
-              : "border-amber-200 bg-[linear-gradient(180deg,#ffffff_0%,#fffbeb_100%)]"
+                ? "border-red-200 bg-[linear-gradient(180deg,#ffffff_0%,#fff1f2_100%)]"
+                : match.status === "SCHEDULED"
+                  ? "border-sky-200 bg-[linear-gradient(180deg,#ffffff_0%,#eff6ff_100%)]"
+                  : "border-slate-300 bg-[linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)]"
           }`}
         >
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -45,73 +49,69 @@ export function TournamentMatchList({
               </p>
             </div>
 
-            <span
-              className={`w-fit rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${
-                match.status === "FINAL"
-                  ? "bg-emerald-100 text-emerald-800"
-                  : match.status === "LIVE"
-                    ? "bg-sky-100 text-sky-800"
-                  : "bg-amber-100 text-amber-800"
-              }`}
-            >
-              {match.status === "FINAL" ? "Finale" : match.status === "LIVE" ? "In corso" : "In programma"}
-            </span>
+            <MatchLiveIndicator status={match.status} />
           </div>
 
-          <div className="mt-4 grid gap-3">
-            <div className="rounded-2xl bg-white/90 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
+          <div className="mt-4 rounded-[1.5rem] bg-white/90 px-4 py-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+              <div className="flex items-center gap-3">
+                <TeamMark name={match.homeTeamName} />
+                <div className="min-w-0">
                   <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Casa</p>
-                  <p className="mt-1 text-base font-semibold text-slate-950">{match.homeTeamName}</p>
+                  <p className="mt-1 truncate text-base font-semibold text-slate-950">
+                    {match.homeTeamName}
+                  </p>
                 </div>
-                <span
-                  className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
-                    match.status === "FINAL"
-                      ? "bg-emerald-50 text-emerald-800"
-                      : match.status === "LIVE"
-                        ? "bg-sky-50 text-sky-800"
-                      : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {match.homeScore ?? (match.status === "FINAL" ? "0" : "-")}
-                </span>
               </div>
-            </div>
 
-            <div className="rounded-2xl bg-white/90 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
-                  <p className="mt-1 text-base font-semibold text-slate-950">{match.awayTeamName}</p>
-                </div>
-                <span
-                  className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
-                    match.status === "FINAL"
+              <div
+                className={`rounded-[1.35rem] px-4 py-3 text-center ${
+                  match.status === "LIVE"
+                    ? "bg-red-50 text-red-700"
+                    : match.status === "FINISHED"
                       ? "bg-emerald-50 text-emerald-800"
-                      : match.status === "LIVE"
-                        ? "bg-sky-50 text-sky-800"
-                      : "bg-slate-100 text-slate-700"
-                  }`}
-                >
-                  {match.awayScore ?? (match.status === "FINAL" ? "0" : "-")}
-                </span>
+                      : "bg-slate-100 text-slate-800"
+                }`}
+              >
+                <p className="text-2xl font-semibold tabular-nums sm:text-3xl">
+                  {match.homeScore} - {match.awayScore}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3">
+                <div className="min-w-0 text-right">
+                  <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
+                  <p className="mt-1 truncate text-base font-semibold text-slate-950">
+                    {match.awayTeamName}
+                  </p>
+                </div>
+                <TeamMark name={match.awayTeamName} />
               </div>
             </div>
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3 text-sm">
             <span className="font-medium text-slate-600">
-              {match.status === "FINAL"
-                ? "Risultato"
+              {match.status === "FINISHED"
+                ? "Risultato finale"
                 : match.status === "LIVE"
-                  ? "Diretta"
-                  : "Stato partita"}
+                  ? "Aggiornamento live"
+                  : match.status === "SCHEDULED"
+                    ? "Calcio d'inizio"
+                    : "Stato partita"}
             </span>
             <span className="font-semibold text-slate-950">
-              {match.homeScore !== null && match.awayScore !== null
-                ? `${match.homeScore} - ${match.awayScore}`
-                : "In attesa del calcio d'inizio"}
+              {match.status === "SCHEDULED"
+                ? formatDateTimeLabel(match.startsAt)
+                : match.status === "LIVE"
+                  ? match.lastScoreUpdatedAt
+                    ? `Ultimo aggiornamento ${formatDateTimeLabel(match.lastScoreUpdatedAt)}`
+                    : "Diretta in corso"
+                  : match.status === "POSTPONED"
+                    ? "Rinvio comunicato"
+                    : match.status === "CANCELLED"
+                      ? "Partita annullata"
+                      : `${match.homeScore} - ${match.awayScore}`}
             </span>
           </div>
         </article>

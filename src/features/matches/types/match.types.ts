@@ -12,8 +12,12 @@ export type MatchSummary = {
   roundLabel: string | null;
   startsAt: Date | null;
   endsAt: Date | null;
+  liveStartedAt: Date | null;
+  finishedAt: Date | null;
+  lastScoreUpdatedAt: Date | null;
+  scoreVersion: number;
   locationLabel: string | null;
-  status: "SCHEDULED" | "LIVE" | "FINAL";
-  homeScore: number | null;
-  awayScore: number | null;
+  status: "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
+  homeScore: number;
+  awayScore: number;
 };

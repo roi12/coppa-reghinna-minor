@@ -5,7 +5,7 @@ export function hasProtectedMatches(
 ) {
   return matches.some(
     (match) =>
-      match.status === MatchStatus.FINAL ||
+      match.status === MatchStatus.FINISHED ||
       match.status === MatchStatus.LIVE ||
       match.homeScore !== null ||
       match.awayScore !== null,

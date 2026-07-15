@@ -21,7 +21,7 @@ function buildGroupMatches(prefix: string) {
   ];
 
   return pairs.map(([homeIndex, awayIndex]) => ({
-    status: MatchStatus.FINAL,
+    status: MatchStatus.FINISHED,
     homeTeamId: teamIds[homeIndex] ?? null,
     awayTeamId: teamIds[awayIndex] ?? null,
     homeScore: 0,

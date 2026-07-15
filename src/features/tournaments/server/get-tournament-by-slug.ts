@@ -79,7 +79,7 @@ export const getTournamentBySlug = cache(
       prisma.match.count({
         where: {
           ...visibleMatchWhere,
-          status: MatchStatus.FINAL,
+          status: MatchStatus.FINISHED,
         },
       }),
     ]);

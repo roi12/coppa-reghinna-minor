@@ -26,7 +26,24 @@ enum TournamentFormat {
 enum MatchStatus {
   SCHEDULED
   LIVE
-  FINAL
+  FINISHED
+  POSTPONED
+  CANCELLED
+}
+
+enum MatchScoreEventActionType {
+  START_MATCH
+  FINISH_MATCH
+  RETURN_TO_SCHEDULED
+  REOPEN_MATCH
+  POSTPONE_MATCH
+  CANCEL_MATCH
+  INCREMENT_HOME_SCORE
+  INCREMENT_AWAY_SCORE
+  DECREMENT_HOME_SCORE
+  DECREMENT_AWAY_SCORE
+  SET_SCORE
+  UNDO_LAST_CHANGE
 }
 
 enum TournamentStageType {
@@ -312,10 +329,15 @@ model Match {
   roundLabel    String?
   startsAt      DateTime?
   endsAt        DateTime?
+  liveStartedAt DateTime?
+  finishedAt    DateTime?
+  lastScoreUpdatedAt DateTime?
+  lastScoreUpdatedByUserId String?
   locationLabel String?
   status        MatchStatus @default(SCHEDULED)
-  homeScore     Int?
-  awayScore     Int?
+  homeScore     Int         @default(0)
+  awayScore     Int         @default(0)
+  scoreVersion  Int         @default(0)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   tournament    Tournament  @relation(fields: [tournamentId], references: [id], onDelete: Cascade)
@@ -329,8 +351,10 @@ model Match {
   awaySourceGroup TournamentGroup? @relation("MatchAwaySourceGroup", fields: [awaySourceGroupId], references: [id], onDelete: SetNull)
   homeSourceMatch Match?    @relation("MatchHomeSourceMatch", fields: [homeSourceMatchId], references: [id], onDelete: SetNull)
   awaySourceMatch Match?    @relation("MatchAwaySourceMatch", fields: [awaySourceMatchId], references: [id], onDelete: SetNull)
+  lastScoreUpdatedBy User?  @relation("MatchLastScoreUpdatedBy", fields: [lastScoreUpdatedByUserId], references: [id], onDelete: SetNull)
   dependentHomeMatches Match[] @relation("MatchHomeSourceMatch")
   dependentAwayMatches Match[] @relation("MatchAwaySourceMatch")
+  scoreEvents   MatchScoreEvent[]
 
   @@index([tournamentId])
   @@index([stageId])
@@ -343,6 +367,26 @@ model Match {
   @@index([awayTeamId])
   @@index([homeSourceMatchId])
   @@index([awaySourceMatchId])
+  @@index([lastScoreUpdatedByUserId])
+}
+
+model MatchScoreEvent {
+  id                    String                    @id @default(cuid())
+  matchId               String
+  userId                String?
+  actionType            MatchScoreEventActionType
+  previousStatus        MatchStatus
+  nextStatus            MatchStatus
+  previousHomeScore     Int
+  previousAwayScore     Int
+  nextHomeScore         Int
+  nextAwayScore         Int
+  createdAt             DateTime                  @default(now())
+  match                 Match                     @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user                  User?                     @relation("MatchScoreEventUser", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([matchId, createdAt])
+  @@index([userId])
 }
 
 model User {
@@ -355,6 +399,8 @@ model User {
   updatedAt    DateTime  @updatedAt
   sessions     Session[]
   reviewedTeamRegistrations TeamRegistration[]
+  matchScoreEvents MatchScoreEvent[] @relation("MatchScoreEventUser")
+  lastScoreUpdatedMatches Match[] @relation("MatchLastScoreUpdatedBy")
 }
 
 model Session {

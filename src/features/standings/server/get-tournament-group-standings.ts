@@ -28,13 +28,7 @@ export const getTournamentGroupStandings = cache(
         },
         matches: {
           where: {
-            status: MatchStatus.FINAL,
-            homeScore: {
-              not: null,
-            },
-            awayScore: {
-              not: null,
-            },
+            status: MatchStatus.FINISHED,
           },
           select: {
             homeTeamId: true,
@@ -74,8 +68,8 @@ export const getTournamentGroupStandings = cache(
             awayTeamId: match.awayTeamId,
             homeTeamName: match.homeTeam.name,
             awayTeamName: match.awayTeam.name,
-            homeScore: match.homeScore as number,
-            awayScore: match.awayScore as number,
+            homeScore: match.homeScore,
+            awayScore: match.awayScore,
           };
         })
         .filter(

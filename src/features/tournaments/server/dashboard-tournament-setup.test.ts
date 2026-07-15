@@ -152,10 +152,14 @@ function buildMatches(count: number, withSchedule = false): MatchSummary[] {
     roundLabel: `Match ${index + 1}`,
     startsAt: withSchedule ? new Date(Date.UTC(2026, 6, index + 1, 22, 0, 0)) : null,
     endsAt: withSchedule ? new Date(Date.UTC(2026, 6, index + 1, 23, 0, 0)) : null,
+    liveStartedAt: null,
+    finishedAt: null,
+    lastScoreUpdatedAt: null,
+    scoreVersion: 0,
     locationLabel: null,
     status: "SCHEDULED",
-    homeScore: null,
-    awayScore: null,
+    homeScore: 0,
+    awayScore: 0,
   }));
 }
 

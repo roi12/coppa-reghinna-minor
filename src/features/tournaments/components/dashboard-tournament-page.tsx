@@ -761,7 +761,7 @@ export async function DashboardTournamentPage({
             </div>
           ) : null}
 
-          <DashboardMatchResultsPanel matches={matches} tournamentSlug={tournament.slug} />
+          <DashboardMatchResultsPanel matches={matches} />
         </article>
       </section>
 

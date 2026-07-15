@@ -144,7 +144,10 @@ export async function reportTournamentMatchResultAction(formData: FormData) {
   const hasScoreInputs =
     typeof parsed.data.homeScore === "number" || typeof parsed.data.awayScore === "number";
 
-  if ((parsed.data.status === "LIVE" || parsed.data.status === "FINAL" || hasScoreInputs) && participantValidationError) {
+  if (
+    (parsed.data.status === "LIVE" || parsed.data.status === "FINISHED" || hasScoreInputs) &&
+    participantValidationError
+  ) {
     return redirectWithMessage(
       `/dashboard/tournaments/${tournamentSlug}`,
       "error",
@@ -164,19 +167,19 @@ export async function reportTournamentMatchResultAction(formData: FormData) {
     where: { id: parsed.data.matchId },
     data: {
       status:
-        parsed.data.status === "FINAL"
-          ? MatchStatus.FINAL
+        parsed.data.status === "FINISHED"
+          ? MatchStatus.FINISHED
           : parsed.data.status === "LIVE"
             ? MatchStatus.LIVE
             : MatchStatus.SCHEDULED,
       homeScore:
-        parsed.data.status === "FINAL" || parsed.data.status === "LIVE"
-          ? parsed.data.homeScore ?? null
-          : null,
+        parsed.data.status === "FINISHED" || parsed.data.status === "LIVE"
+          ? parsed.data.homeScore ?? 0
+          : 0,
       awayScore:
-        parsed.data.status === "FINAL" || parsed.data.status === "LIVE"
-          ? parsed.data.awayScore ?? null
-          : null,
+        parsed.data.status === "FINISHED" || parsed.data.status === "LIVE"
+          ? parsed.data.awayScore ?? 0
+          : 0,
     },
   });
 
@@ -301,8 +304,8 @@ export async function generateTournamentRoundRobinCalendarAction(formData: FormD
         startsAt: match.startsAt,
         locationLabel: null,
         status: MatchStatus.SCHEDULED,
-        homeScore: null,
-        awayScore: null,
+        homeScore: 0,
+        awayScore: 0,
       }));
 
     if (matchesToCreate.length > 0) {
@@ -523,8 +526,8 @@ export async function generateGroupStageMatchesAction(formData: FormData) {
         startsAt: match.startsAt,
         locationLabel: null,
         status: MatchStatus.SCHEDULED,
-        homeScore: null,
-        awayScore: null,
+        homeScore: 0,
+        awayScore: 0,
       }));
 
     if (matchesToCreate.length > 0) {

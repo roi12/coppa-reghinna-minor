@@ -12,7 +12,7 @@ export async function getTournamentStandings(tournamentId: string): Promise<Stan
 
   const finishedMatches = matches.flatMap((match) => {
     if (
-      match.status !== "FINAL" ||
+      match.status !== "FINISHED" ||
       match.homeScore === null ||
       match.awayScore === null ||
       !match.homeTeamId ||
