@@ -9,27 +9,11 @@ import {
 import type { MatchSummary } from "@/features/matches/types/match.types";
 import { assembleStandingsTable } from "@/features/standings/server/assemble-standings-table";
 import { calculateStandings } from "@/features/standings/server/calculate-standings";
-import type { GroupStandingSummary, StandingRow } from "@/features/standings/types/standings.types";
+import type { GroupStandingSummary } from "@/features/standings/types/standings.types";
 import { getKnockoutStageVisibilityState } from "@/features/tournaments/server/tournament-stage-visibility";
+import type { PublicTournamentLiveState } from "@/features/tournaments/types/public-tournament-live-state.types";
 import { normalizeTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { prisma } from "@/lib/prisma";
-
-export type PublicTournamentLiveState = {
-  generatedAt: string;
-  tournament: {
-    id: string;
-    slug: string;
-    name: string;
-    format: ReturnType<typeof normalizeTournamentFormat>;
-    locationLabel: string | null;
-    teamCount: number;
-    completedMatchCount: number;
-    knockoutStageIsPublic: boolean | null;
-  };
-  matches: MatchSummary[];
-  standings: StandingRow[];
-  groupStandings: GroupStandingSummary[];
-};
 
 function buildStandingsFromMatches(matches: MatchSummary[], teams: Array<{ id: string; name: string }>) {
   const finishedMatches = matches.flatMap((match) => {
@@ -140,7 +124,7 @@ export async function getPublicTournamentLiveState(
   });
 
   return {
-    generatedAt: new Date().toISOString(),
+    generatedAt: new Date(),
     tournament: {
       id: tournament.id,
       slug: tournament.slug,

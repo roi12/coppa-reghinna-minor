@@ -1,4 +1,4 @@
-import "dotenv/config";
+import "../src/lib/load-env.mjs";
 
 import { TeamRegistrationStatus } from "@prisma/client";
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { getPublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
+import { serializePublicTournamentLiveState } from "@/features/tournaments/types/public-tournament-live-state.types";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +16,7 @@ export async function GET(
     return NextResponse.json({ error: "Tournament not found." }, { status: 404 });
   }
 
-  return NextResponse.json(state, {
+  return NextResponse.json(serializePublicTournamentLiveState(state), {
     headers: {
       "Cache-Control": "no-store",
     },

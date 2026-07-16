@@ -1,3 +1,5 @@
+import { parseOptionalDate } from "@/lib/parse-date";
+
 const dateFormatter = new Intl.DateTimeFormat("it-IT", {
   dateStyle: "medium",
   timeZone: "UTC",
@@ -10,46 +12,64 @@ const dateTimeFormatter = new Intl.DateTimeFormat("it-IT", {
   timeZone: "UTC",
 });
 
-export function formatDateLabel(date: Date | null) {
-  return date ? dateFormatter.format(date) : "Data da definire";
+function getValidDate(date: Date | string | null | undefined) {
+  return parseOptionalDate(date);
 }
 
-export function formatDateTimeLabel(date: Date | null) {
-  return date ? `${dateTimeFormatter.format(date)} UTC` : "Data da definire";
+export function formatDateLabel(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+  return validDate ? dateFormatter.format(validDate) : "Data da definire";
 }
 
-export function formatDateRangeLabel(startDate: Date | null, endDate: Date | null) {
-  if (!startDate && !endDate) {
+export function formatDateTimeLabel(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+  return validDate ? `${dateTimeFormatter.format(validDate)} UTC` : "Data da definire";
+}
+
+export function formatDateRangeLabel(
+  startDate: Date | string | null | undefined,
+  endDate: Date | string | null | undefined,
+) {
+  const validStartDate = getValidDate(startDate);
+  const validEndDate = getValidDate(endDate);
+
+  if (!validStartDate && !validEndDate) {
     return "Date da definire";
   }
 
-  if (startDate && endDate) {
-    return `${formatDateLabel(startDate)} - ${formatDateLabel(endDate)}`;
+  if (validStartDate && validEndDate) {
+    return `${formatDateLabel(validStartDate)} - ${formatDateLabel(validEndDate)}`;
   }
 
-  return startDate ? formatDateLabel(startDate) : formatDateLabel(endDate);
+  return validStartDate ? formatDateLabel(validStartDate) : formatDateLabel(validEndDate);
 }
 
-export function formatDateInputValue(date: Date | null) {
-  if (!date) {
+export function formatDateInputValue(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+
+  if (!validDate) {
     return "";
   }
 
-  return date.toISOString().slice(0, 10);
+  return validDate.toISOString().slice(0, 10);
 }
 
-export function formatDateTimeInputValue(date: Date | null) {
-  if (!date) {
+export function formatDateTimeInputValue(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+
+  if (!validDate) {
     return "";
   }
 
-  return date.toISOString().slice(0, 16);
+  return validDate.toISOString().slice(0, 16);
 }
 
-export function formatTimeInputValue(date: Date | null) {
-  if (!date) {
+export function formatTimeInputValue(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+
+  if (!validDate) {
     return "";
   }
 
-  return date.toISOString().slice(11, 16);
+  return validDate.toISOString().slice(11, 16);
 }

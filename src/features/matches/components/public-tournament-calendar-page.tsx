@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getPublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
+import { serializePublicTournamentLiveState } from "@/features/tournaments/types/public-tournament-live-state.types";
 
 import { PublicTournamentLiveCalendar } from "./public-tournament-live-calendar";
 
@@ -17,5 +18,5 @@ export async function PublicTournamentCalendarPage({
     notFound();
   }
 
-  return <PublicTournamentLiveCalendar slug={slug} initialState={state} />;
+  return <PublicTournamentLiveCalendar slug={slug} initialState={serializePublicTournamentLiveState(state)} />;
 }

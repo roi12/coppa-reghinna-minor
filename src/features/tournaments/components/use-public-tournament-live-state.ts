@@ -1,20 +1,27 @@
 "use client";
 
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
-import type { PublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
+import {
+  normalizePublicTournamentLiveState,
+  type PublicTournamentLiveStateTransport,
+} from "@/features/tournaments/types/public-tournament-live-state.types";
 
 type LiveConnectionStatus = "connecting" | "connected" | "reconnecting" | "polling";
 
 export function usePublicTournamentLiveState(
   slug: string,
-  initialState: PublicTournamentLiveState,
+  initialState: PublicTournamentLiveStateTransport,
 ) {
-  const [state, setState] = useState(initialState);
+  const [state, setState] = useState(() => normalizePublicTournamentLiveState(initialState));
   const [connectionStatus, setConnectionStatus] = useState<LiveConnectionStatus>("connecting");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const latestRequestIdRef = useRef(0);
 
   const refreshState = useEffectEvent(async () => {
+    const requestId = latestRequestIdRef.current + 1;
+    latestRequestIdRef.current = requestId;
+
     const response = await fetch(`/api/tournaments/${slug}/live-state`, {
       cache: "no-store",
     });
@@ -23,7 +30,14 @@ export function usePublicTournamentLiveState(
       throw new Error("Unable to refresh live match data.");
     }
 
-    const nextState = (await response.json()) as PublicTournamentLiveState;
+    const nextState = normalizePublicTournamentLiveState(
+      (await response.json()) as PublicTournamentLiveStateTransport,
+    );
+
+    if (requestId !== latestRequestIdRef.current) {
+      return;
+    }
+
     setState(nextState);
     setErrorMessage(null);
   });

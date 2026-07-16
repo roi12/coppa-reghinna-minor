@@ -1,3 +1,4 @@
+import "../src/lib/load-env.mjs";
 import { execFileSync } from "node:child_process";
 
 function parseRequiredDatabaseUrl(value, label) {

@@ -4,14 +4,14 @@ import Link from "next/link";
 
 import { TournamentMatchList } from "@/features/matches/components/tournament-match-list";
 import { StandingsTable } from "@/features/standings/components/standings-table";
-import type { PublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
 import { usePublicTournamentLiveState } from "@/features/tournaments/components/use-public-tournament-live-state";
+import type { PublicTournamentLiveStateTransport } from "@/features/tournaments/types/public-tournament-live-state.types";
 import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { BRAND } from "@/lib/brand";
 
 type PublicTournamentLiveOverviewProps = {
   slug: string;
-  initialState: PublicTournamentLiveState;
+  initialState: PublicTournamentLiveStateTransport;
 };
 
 function getConnectionLabel(status: "connecting" | "connected" | "reconnecting" | "polling") {

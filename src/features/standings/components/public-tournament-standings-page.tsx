@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getPublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
+import { serializePublicTournamentLiveState } from "@/features/tournaments/types/public-tournament-live-state.types";
 
 import { PublicTournamentLiveStandings } from "./public-tournament-live-standings";
 
@@ -17,5 +18,5 @@ export async function PublicTournamentStandingsPage({
     notFound();
   }
 
-  return <PublicTournamentLiveStandings slug={slug} initialState={state} />;
+  return <PublicTournamentLiveStandings slug={slug} initialState={serializePublicTournamentLiveState(state)} />;
 }

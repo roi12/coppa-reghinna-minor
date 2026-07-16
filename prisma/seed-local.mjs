@@ -1,3 +1,4 @@
+import "../src/lib/load-env.mjs";
 import { randomBytes, scryptSync } from "node:crypto";
 
 import { MatchStatus, TournamentFormat, TournamentStatus, UserRole } from "@prisma/client";

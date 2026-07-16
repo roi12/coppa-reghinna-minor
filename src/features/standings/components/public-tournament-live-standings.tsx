@@ -2,12 +2,12 @@
 
 import { StandingsTable } from "@/features/standings/components/standings-table";
 import { usePublicTournamentLiveState } from "@/features/tournaments/components/use-public-tournament-live-state";
-import type { PublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
+import type { PublicTournamentLiveStateTransport } from "@/features/tournaments/types/public-tournament-live-state.types";
 import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 
 type PublicTournamentLiveStandingsProps = {
   slug: string;
-  initialState: PublicTournamentLiveState;
+  initialState: PublicTournamentLiveStateTransport;
 };
 
 export function PublicTournamentLiveStandings({

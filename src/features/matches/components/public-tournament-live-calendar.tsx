@@ -2,11 +2,11 @@
 
 import { TournamentMatchList } from "@/features/matches/components/tournament-match-list";
 import { usePublicTournamentLiveState } from "@/features/tournaments/components/use-public-tournament-live-state";
-import type { PublicTournamentLiveState } from "@/features/tournaments/server/get-public-tournament-live-state";
+import type { PublicTournamentLiveStateTransport } from "@/features/tournaments/types/public-tournament-live-state.types";
 
 type PublicTournamentLiveCalendarProps = {
   slug: string;
-  initialState: PublicTournamentLiveState;
+  initialState: PublicTournamentLiveStateTransport;
 };
 
 export function PublicTournamentLiveCalendar({

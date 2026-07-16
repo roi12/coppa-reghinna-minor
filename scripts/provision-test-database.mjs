@@ -1,3 +1,4 @@
+import "../src/lib/load-env.mjs";
 import { Client } from "pg";
 
 function parseDatabaseUrl(value, label) {
