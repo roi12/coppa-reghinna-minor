@@ -17,6 +17,7 @@
     "db:seed:demo": "node prisma/seed.mjs",
     "db:seed:production": "node prisma/seed-production.mjs",
     "db:reset:local": "node scripts/reset-local-development.mjs",
+    "tournament:set-preliminary-standings-scope": "node scripts/set-preliminary-standings-scope.mjs",
     "seed:test-registrations": "node scripts/seed-test-registrations.mjs",
     "db:test:ensure": "node scripts/provision-test-database.mjs",
     "test:integration:tournament": "tsx --test tests/integration/tournament-31-match-flow.test.ts",

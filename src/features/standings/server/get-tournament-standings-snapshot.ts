@@ -1,10 +1,15 @@
 import { cache } from "react";
 
-import { buildPreliminaryStandingsSnapshot } from "@/features/standings/server/preliminary-standings";
+import {
+  buildConfiguredStandingsScopeUpdate,
+  buildPreliminaryStandingsSnapshot,
+  inferQualificationStandingsMode,
+  readConfiguredStandingsMode,
+} from "@/features/standings/server/preliminary-standings";
 import { prisma } from "@/lib/prisma";
 
 export const getTournamentStandingsSnapshot = cache(async (tournamentId: string) => {
-  const [stages, groups, tournamentTeams, matches] = await Promise.all([
+  const [loadedStages, groups, tournamentTeams, matches] = await Promise.all([
     prisma.tournamentStage.findMany({
       where: { tournamentId },
       orderBy: { order: "asc" },
@@ -51,6 +56,12 @@ export const getTournamentStandingsSnapshot = cache(async (tournamentId: string)
         awayScore: true,
         homeTeamId: true,
         awayTeamId: true,
+        homeParticipantSourceType: true,
+        awayParticipantSourceType: true,
+        homeSourceGroupId: true,
+        awaySourceGroupId: true,
+        homeSourceGroupPosition: true,
+        awaySourceGroupPosition: true,
         homeTeam: {
           select: {
             name: true,
@@ -69,6 +80,48 @@ export const getTournamentStandingsSnapshot = cache(async (tournamentId: string)
       },
     }),
   ]);
+
+  const preliminaryStage =
+    loadedStages.find((stage) => stage.type === "GROUP_STAGE") ?? null;
+  const configuredMode =
+    preliminaryStage ? readConfiguredStandingsMode(preliminaryStage) : null;
+  const qualificationMode =
+    preliminaryStage && !configuredMode ? inferQualificationStandingsMode(
+      matches.map((match) => ({
+        stageType: match.stage?.type ?? null,
+        homeParticipantSourceType: match.homeParticipantSourceType,
+        awayParticipantSourceType: match.awayParticipantSourceType,
+        homeSourceGroupId: match.homeSourceGroupId,
+        awaySourceGroupId: match.awaySourceGroupId,
+        homeSourceGroupPosition: match.homeSourceGroupPosition,
+        awaySourceGroupPosition: match.awaySourceGroupPosition,
+      })),
+    ) : null;
+
+  let stages = loadedStages;
+
+  if (preliminaryStage && !configuredMode && qualificationMode) {
+    const updatedConfiguration = buildConfiguredStandingsScopeUpdate({
+      stage: preliminaryStage,
+      mode: qualificationMode,
+    });
+
+    await prisma.tournamentStage.update({
+      where: { id: preliminaryStage.id },
+      data: {
+        configuration: updatedConfiguration,
+      },
+    });
+
+    stages = loadedStages.map((stage) =>
+      stage.id === preliminaryStage.id
+        ? {
+            ...stage,
+            configuration: updatedConfiguration,
+          }
+        : stage,
+    );
+  }
 
   return buildPreliminaryStandingsSnapshot({
     stages,
@@ -91,6 +144,12 @@ export const getTournamentStandingsSnapshot = cache(async (tournamentId: string)
       awayTeamName: match.awayTeam?.name ?? "Squadra",
       homeScore: match.homeScore,
       awayScore: match.awayScore,
+      homeParticipantSourceType: match.homeParticipantSourceType,
+      awayParticipantSourceType: match.awayParticipantSourceType,
+      homeSourceGroupId: match.homeSourceGroupId,
+      awaySourceGroupId: match.awaySourceGroupId,
+      homeSourceGroupPosition: match.homeSourceGroupPosition,
+      awaySourceGroupPosition: match.awaySourceGroupPosition,
     })),
   });
 });

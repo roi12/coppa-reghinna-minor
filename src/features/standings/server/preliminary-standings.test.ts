@@ -1,11 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MatchStatus, TournamentStageType } from "@prisma/client";
+import {
+  MatchParticipantSourceType,
+  MatchStatus,
+  TournamentStageType,
+} from "@prisma/client";
 
 import {
+  buildConfiguredStandingsScopeUpdate,
   buildPreliminaryStandingsSnapshot,
   getDisplayRoundLabel,
+  inferQualificationStandingsMode,
   inferPreliminaryStandingsMode,
 } from "@/features/standings/server/preliminary-standings";
 
@@ -202,6 +208,79 @@ test("genuine multi-group tournaments keep separated standings", () => {
   });
 
   assert.equal(mode, "GROUPS");
+});
+
+test("global knockout qualification sources force a global preliminary standings mode", () => {
+  const mode = inferPreliminaryStandingsMode({
+    stage: {
+      id: "stage-preliminary",
+      name: "Fase preliminare",
+      type: TournamentStageType.GROUP_STAGE,
+      groupCount: 3,
+      configuration: null,
+    },
+    groups: [
+      { id: "pool-1", name: "Pool A", sequence: 1, stageId: "stage-preliminary" },
+      { id: "pool-2", name: "Pool B", sequence: 2, stageId: "stage-preliminary" },
+      { id: "pool-3", name: "Pool C", sequence: 3, stageId: "stage-preliminary" },
+    ],
+    teams: buildTeams(),
+    matches: [
+      ...buildSchedulingPoolMatches(),
+      {
+        id: "qf-1",
+        stageId: "stage-knockout",
+        stageType: TournamentStageType.KNOCKOUT_STAGE,
+        groupId: null,
+        roundLabel: "QF1",
+        status: MatchStatus.SCHEDULED,
+        homeTeamId: null,
+        awayTeamId: null,
+        homeTeamName: "Squadra",
+        awayTeamName: "Squadra",
+        homeScore: 0,
+        awayScore: 0,
+        homeParticipantSourceType: MatchParticipantSourceType.GROUP_POSITION,
+        awayParticipantSourceType: MatchParticipantSourceType.GROUP_POSITION,
+        homeSourceGroupId: null,
+        awaySourceGroupId: null,
+        homeSourceGroupPosition: 1,
+        awaySourceGroupPosition: 8,
+      },
+    ],
+  });
+
+  assert.equal(mode, "GLOBAL");
+});
+
+test("global qualification sources can be persisted as an explicit standings scope", () => {
+  const mode = inferQualificationStandingsMode([
+    {
+      stageType: TournamentStageType.KNOCKOUT_STAGE,
+      homeParticipantSourceType: MatchParticipantSourceType.GROUP_POSITION,
+      awayParticipantSourceType: MatchParticipantSourceType.GROUP_POSITION,
+      homeSourceGroupId: null,
+      awaySourceGroupId: null,
+      homeSourceGroupPosition: 1,
+      awaySourceGroupPosition: 8,
+    },
+  ]);
+
+  assert.equal(mode, "GLOBAL");
+  assert.deepEqual(
+    buildConfiguredStandingsScopeUpdate({
+      stage: {
+        configuration: {
+          pairingRule: "CROSS_ADJACENT_GROUPS",
+        },
+      },
+      mode: mode as "GLOBAL",
+    }),
+    {
+      pairingRule: "CROSS_ADJACENT_GROUPS",
+      standingsScope: "GLOBAL",
+    },
+  );
 });
 
 test("global-table preliminary labels drop scheduling pool prefixes", () => {
