@@ -70,6 +70,7 @@ export function PublicTournamentLiveCalendar({
           <TournamentMatchList
             matches={state.matches}
             emptyMessage="Non ci sono ancora partite programmate per questo torneo."
+            tournamentSlug={slug}
           />
         </div>
       </section>

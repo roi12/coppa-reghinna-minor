@@ -39,6 +39,9 @@ function buildMatch(overrides: Partial<MatchSummary> = {}): MatchSummary {
     status: "LIVE",
     homeScore: 2,
     awayScore: 1,
+    goalSummary: [],
+    latestEventSummary: null,
+    scoreReconciliation: null,
     ...overrides,
   };
 }

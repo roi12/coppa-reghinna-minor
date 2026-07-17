@@ -1,11 +1,14 @@
 "use server";
 
-import type { Prisma } from "@prisma/client";
 import { TournamentStatus } from "@prisma/client";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { requireOwnerOrAdmin } from "@/features/auth/server/session";
+import {
+  approvePendingTeamRegistrationRecord,
+  type TeamRegistrationApprovalEmailPayload,
+} from "@/features/team-registrations/server/approve-pending-team-registration";
 import {
   generateCaptainManageToken,
   hashCaptainManageToken,
@@ -92,60 +95,6 @@ function getValidationMessage(error: z.ZodError) {
 
   return issue.message;
 }
-
-function normalizeText(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function slugifyTeamName(value: string) {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-
-  return slug.length > 0 ? slug.slice(0, 120) : "team";
-}
-
-async function generateUniqueTeamSlug(
-  transaction: Prisma.TransactionClient,
-  organizationId: string,
-  teamName: string,
-) {
-  const baseSlug = slugifyTeamName(teamName);
-  const existingTeams = await transaction.team.findMany({
-    where: {
-      organizationId,
-      slug: {
-        startsWith: baseSlug,
-      },
-    },
-    select: {
-      slug: true,
-    },
-  });
-
-  const existingSlugs = new Set(existingTeams.map((team) => team.slug));
-
-  if (!existingSlugs.has(baseSlug)) {
-    return baseSlug;
-  }
-
-  let suffix = 2;
-
-  while (existingSlugs.has(`${baseSlug}-${suffix}`)) {
-    suffix += 1;
-  }
-
-  return `${baseSlug}-${suffix}`;
-}
-
-type TeamRegistrationApprovalEmailPayload = {
-  captainEmail: string;
-  captainFirstName: string;
-  teamName: string;
-};
 
 function logTeamRegistrationStorageCleanupWarning(error: unknown) {
   console.warn("Team registration document cleanup failed", error);
@@ -327,123 +276,13 @@ export async function approveTeamRegistrationAction(formData: FormData) {
   let approvalEmailPayload: TeamRegistrationApprovalEmailPayload | null = null;
 
   try {
-    approvalEmailPayload = await prisma.$transaction(async (transaction) => {
-      const registration = await transaction.teamRegistration.findUnique({
-        where: { id: parsed.data.registrationId },
-        select: {
-          id: true,
-          tournamentId: true,
-          teamId: true,
-          status: true,
-          teamName: true,
-          captainFirstName: true,
-          captainEmail: true,
-          tournament: {
-            select: {
-              id: true,
-              slug: true,
-              organizationId: true,
-            },
-          },
-          players: {
-            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-            select: {
-              firstName: true,
-              lastName: true,
-              jerseyNumber: true,
-              role: true,
-              sortOrder: true,
-            },
-          },
-        },
-      });
-
-      if (!registration || registration.tournament.slug !== parsed.data.tournamentSlug) {
-        throw new Error("Registration not found.");
-      }
-
-      if (registration.status !== "PENDING") {
-        throw new Error("Only pending registrations can be approved.");
-      }
-
-      const existingTournamentTeams = await transaction.tournamentTeam.findMany({
-        where: {
-          tournamentId: registration.tournamentId,
-        },
-        select: {
-          team: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      });
-
-      const hasDuplicateTeamName = existingTournamentTeams.some(
-        (entry) => normalizeText(entry.team.name) === normalizeText(registration.teamName),
-      );
-
-      if (hasDuplicateTeamName) {
-        throw new Error("A team with that name already exists in this tournament.");
-      }
-
-      const teamSlug = await generateUniqueTeamSlug(
-        transaction,
-        registration.tournament.organizationId,
-        registration.teamName,
-      );
-
-      const team = await transaction.team.create({
-        data: {
-          organizationId: registration.tournament.organizationId,
-          name: registration.teamName,
-          slug: teamSlug,
-        },
-      });
-
-      const highestSeedEntry = await transaction.tournamentTeam.findFirst({
-        where: { tournamentId: registration.tournamentId },
-        orderBy: { seed: "desc" },
-        select: { seed: true },
-      });
-
-      await transaction.tournamentTeam.create({
-        data: {
-          tournamentId: registration.tournamentId,
-          teamId: team.id,
-          seed: (highestSeedEntry?.seed ?? 0) + 1,
-        },
-      });
-
-      await transaction.player.createMany({
-        data: registration.players.map((player) => ({
-          organizationId: registration.tournament.organizationId,
-          teamId: team.id,
-          firstName: player.firstName,
-          lastName: player.lastName,
-          displayName: `${player.firstName} ${player.lastName}`,
-          jerseyNumber: player.jerseyNumber,
-          role: player.role,
-        })),
-      });
-
-      await transaction.teamRegistration.update({
-        where: { id: registration.id },
-        data: {
-          status: "APPROVED",
-          reviewedAt: new Date(),
-          reviewedByUserId: user.id,
-          teamId: team.id,
-          // Preserve the original private manage link. Only the manual reset action rotates it.
-        },
-      });
-
-      return {
-        captainEmail: registration.captainEmail,
-        captainFirstName: registration.captainFirstName,
-        teamName: registration.teamName,
-      };
-    });
+    approvalEmailPayload = await prisma.$transaction((transaction) =>
+      approvePendingTeamRegistrationRecord(transaction, {
+        registrationId: parsed.data.registrationId,
+        tournamentSlug: parsed.data.tournamentSlug,
+        reviewedByUserId: user.id,
+      }),
+    );
   } catch (error) {
     if (error instanceof Error) {
       approvalErrorMessage = error.message;

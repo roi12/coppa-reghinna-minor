@@ -1,5 +1,10 @@
 import { MatchParticipantSourceType, type Prisma } from "@prisma/client";
 
+import {
+  buildLatestEventSummary,
+  buildMatchGoalSummary,
+  buildMatchScoreReconciliation,
+} from "@/features/matches/server/match-player-event-utils";
 import type { MatchSummary } from "@/features/matches/types/match.types";
 
 export const matchSummarySelect = {
@@ -61,6 +66,27 @@ export const matchSummarySelect = {
       isPublic: true,
     },
   },
+  playerEvents: {
+    where: {
+      voidedAt: null,
+    },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      type: true,
+      teamId: true,
+      awardedTeamId: true,
+      playerId: true,
+      playerDisplayNameSnapshot: true,
+      playerJerseyNumberSnapshot: true,
+      teamNameSnapshot: true,
+      matchMinute: true,
+      sequence: true,
+      createdAt: true,
+      updatedAt: true,
+      voidedAt: true,
+    },
+  },
 } satisfies Prisma.MatchSelect;
 
 type RawMatchSummary = Prisma.MatchGetPayload<{
@@ -112,6 +138,20 @@ export function sortMatchSummaries(left: RawMatchSummary, right: RawMatchSummary
 }
 
 export function mapMatchSummary(match: RawMatchSummary): MatchSummary {
+  const goalSummary = buildMatchGoalSummary(match.playerEvents, {
+    homeTeamId: match.homeTeamId,
+    awayTeamId: match.awayTeamId,
+    homeTeamName: buildParticipantLabel(match, "home"),
+    awayTeamName: buildParticipantLabel(match, "away"),
+  });
+  const latestEventSummary = buildLatestEventSummary(match.playerEvents);
+  const scoreReconciliation = buildMatchScoreReconciliation(match.playerEvents, {
+    homeTeamId: match.homeTeamId,
+    awayTeamId: match.awayTeamId,
+    homeScore: match.homeScore,
+    awayScore: match.awayScore,
+  });
+
   return {
     id: match.id,
     tournamentId: match.tournamentId,
@@ -134,5 +174,8 @@ export function mapMatchSummary(match: RawMatchSummary): MatchSummary {
     homeScore: match.homeScore,
     awayScore: match.awayScore,
     scoreVersion: match.scoreVersion,
+    goalSummary,
+    latestEventSummary,
+    scoreReconciliation,
   };
 }

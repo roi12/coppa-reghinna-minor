@@ -7,6 +7,19 @@ import {
   TournamentStageType,
 } from "@prisma/client";
 
+import {
+  createMatchPlayerEvent,
+  listPublicTournamentScorers,
+  MatchPlayerEventError,
+  readDashboardMatchEventContext,
+  updateMatchPlayerEvent,
+  voidMatchPlayerEvent,
+} from "@/features/matches/server/match-player-events";
+import { createPendingTeamRegistration } from "@/features/team-registrations/server/create-pending-team-registration.mjs";
+import {
+  approvePendingTeamRegistrationRecord,
+  syncApprovedTeamPlayers,
+} from "@/features/team-registrations/server/approve-pending-team-registration";
 import { calculateStandings } from "@/features/standings/server/calculate-standings";
 import { getMatchParticipantValidationError } from "@/features/matches/server/match-result-guards";
 import { generateCompetitionStructure } from "@/features/tournaments/server/generate-competition-structure";
@@ -412,6 +425,35 @@ async function createIntegrationFixture(): Promise<IntegrationFixture> {
             id: true,
             createdAt: true,
           },
+        });
+
+        await transaction.player.createMany({
+          data: [
+            {
+              organizationId: organization.id,
+              teamId: team.id,
+              firstName: "Luigi",
+              lastName: `${group.name} ${groupSlot} A`,
+              displayName: `Luigi ${group.name} ${groupSlot} A`,
+              jerseyNumber: "9",
+            },
+            {
+              organizationId: organization.id,
+              teamId: team.id,
+              firstName: "Mario",
+              lastName: `${group.name} ${groupSlot} B`,
+              displayName: `Mario ${group.name} ${groupSlot} B`,
+              jerseyNumber: "10",
+            },
+            {
+              organizationId: organization.id,
+              teamId: team.id,
+              firstName: "Christian",
+              lastName: `${group.name} ${groupSlot} C`,
+              displayName: `Christian ${group.name} ${groupSlot} C`,
+              jerseyNumber: "15",
+            },
+          ],
         });
 
         teamFixtures.push({
@@ -1515,5 +1557,642 @@ test("dependency and manual qualification validation rejects invalid states", ()
         ],
       ),
     /non è più disponibile/i,
+  );
+});
+
+test("player goal events keep score updates atomic and reject stale or wrong-team input", async () => {
+  const fixture = await createIntegrationFixture();
+  await persistCompetitionStructure(fixture);
+
+  const match = await prisma.match.findFirst({
+    where: {
+      tournamentId: fixture.tournamentId,
+      groupId: {
+        not: null,
+      },
+    },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      homeTeamId: true,
+      awayTeamId: true,
+    },
+  });
+
+  assert(match?.homeTeamId);
+  assert(match?.awayTeamId);
+  const homeTeamId = match.homeTeamId;
+
+  await applyMatchResult(match.id, MatchStatus.LIVE, 0, 0);
+
+  const [homePlayer, awayPlayer] = await Promise.all([
+    prisma.player.findFirst({
+      where: { teamId: match.homeTeamId },
+      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      select: { id: true, displayName: true },
+    }),
+    prisma.player.findFirst({
+      where: { teamId: match.awayTeamId },
+      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    }),
+  ]);
+
+  assert(homePlayer?.id);
+  assert(awayPlayer?.id);
+
+  const result = await createMatchPlayerEvent({
+    matchId: match.id,
+    type: "GOAL",
+    teamId: match.homeTeamId,
+    awardedTeamId: match.homeTeamId,
+    playerId: homePlayer.id,
+    expectedScoreVersion: 0,
+  });
+
+  assert.equal(result.homeScore, 1);
+  assert.equal(result.awayScore, 0);
+  assert.equal(result.scoreVersion, 1);
+  assert.ok(result.eventId);
+
+  const persistedMatch = await prisma.match.findUnique({
+    where: { id: match.id },
+    select: {
+      homeScore: true,
+      awayScore: true,
+      scoreVersion: true,
+    },
+  });
+
+  assert.deepEqual(persistedMatch, {
+    homeScore: 1,
+    awayScore: 0,
+    scoreVersion: 1,
+  });
+
+  const [goalEvent, latestScoreEvent] = await Promise.all([
+    prisma.matchPlayerEvent.findUnique({
+      where: { id: result.eventId ?? "" },
+      select: {
+        type: true,
+        playerDisplayNameSnapshot: true,
+      },
+    }),
+    prisma.matchScoreEvent.findFirst({
+      where: { matchId: match.id },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      select: {
+        actionType: true,
+        nextHomeScore: true,
+        nextAwayScore: true,
+      },
+    }),
+  ]);
+
+  assert.equal(goalEvent?.type, "GOAL");
+  assert.equal(goalEvent?.playerDisplayNameSnapshot, homePlayer.displayName);
+  assert.deepEqual(latestScoreEvent, {
+    actionType: "INCREMENT_HOME_SCORE",
+    nextHomeScore: 1,
+    nextAwayScore: 0,
+  });
+
+  await assert.rejects(
+    () =>
+      createMatchPlayerEvent({
+        matchId: match.id,
+        type: "GOAL",
+        teamId: homeTeamId,
+        awardedTeamId: homeTeamId,
+        playerId: awayPlayer.id,
+        expectedScoreVersion: 1,
+      }),
+    (error: unknown) =>
+      error instanceof MatchPlayerEventError && error.code === "INVALID_PLAYER",
+  );
+
+  await assert.rejects(
+    () =>
+      createMatchPlayerEvent({
+        matchId: match.id,
+        type: "GOAL",
+        teamId: homeTeamId,
+        awardedTeamId: homeTeamId,
+        playerId: homePlayer.id,
+        expectedScoreVersion: 0,
+      }),
+    (error: unknown) => error instanceof MatchPlayerEventError && error.code === "CONFLICT",
+  );
+});
+
+test("unassigned goals can be assigned later, cards do not change score, and void restores consistency", async () => {
+  const fixture = await createIntegrationFixture();
+  await persistCompetitionStructure(fixture);
+
+  await prisma.tournament.update({
+    where: { id: fixture.tournamentId },
+    data: {
+      status: "PUBLISHED",
+    },
+  });
+
+  const match = await prisma.match.findFirst({
+    where: {
+      tournamentId: fixture.tournamentId,
+      groupId: {
+        not: null,
+      },
+    },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      homeTeamId: true,
+      awayTeamId: true,
+    },
+  });
+
+  assert(match?.homeTeamId);
+  assert(match?.awayTeamId);
+
+  await applyMatchResult(match.id, MatchStatus.LIVE, 0, 0);
+
+  const [homePlayer, awayPlayer] = await Promise.all([
+    prisma.player.findFirst({
+      where: { teamId: match.homeTeamId },
+      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      select: { id: true, displayName: true },
+    }),
+    prisma.player.findFirst({
+      where: { teamId: match.awayTeamId },
+      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      select: { id: true, displayName: true },
+    }),
+  ]);
+
+  assert(homePlayer?.id);
+  assert(awayPlayer?.id);
+
+  const unassignedGoal = await createMatchPlayerEvent({
+    matchId: match.id,
+    type: "GOAL",
+    teamId: match.homeTeamId,
+    awardedTeamId: match.homeTeamId,
+    playerId: null,
+    expectedScoreVersion: 0,
+  });
+
+  assert.ok(unassignedGoal.eventId);
+  assert.equal(unassignedGoal.homeScore, 1);
+
+  await updateMatchPlayerEvent({
+    matchId: match.id,
+    eventId: unassignedGoal.eventId ?? "",
+    playerId: homePlayer.id,
+  });
+
+  const yellowCard = await createMatchPlayerEvent({
+    matchId: match.id,
+    type: "YELLOW_CARD",
+    teamId: match.awayTeamId,
+    playerId: awayPlayer.id,
+  });
+
+  assert.equal(yellowCard.homeScore, 1);
+  assert.equal(yellowCard.awayScore, 0);
+
+  await voidMatchPlayerEvent({
+    matchId: match.id,
+    eventId: yellowCard.eventId ?? "",
+  });
+
+  const activeGoal = await prisma.matchPlayerEvent.findUnique({
+    where: { id: unassignedGoal.eventId ?? "" },
+    select: {
+      playerDisplayNameSnapshot: true,
+      voidedAt: true,
+    },
+  });
+
+  assert.equal(activeGoal?.playerDisplayNameSnapshot, homePlayer.displayName);
+  assert.equal(activeGoal?.voidedAt, null);
+
+  await voidMatchPlayerEvent({
+    matchId: match.id,
+    eventId: unassignedGoal.eventId ?? "",
+    expectedScoreVersion: 1,
+  });
+
+  const reconciledMatch = await prisma.match.findUnique({
+    where: { id: match.id },
+    select: {
+      homeScore: true,
+      awayScore: true,
+      scoreVersion: true,
+    },
+  });
+
+  assert.deepEqual(reconciledMatch, {
+    homeScore: 0,
+    awayScore: 0,
+    scoreVersion: 2,
+  });
+
+  const activeYellowCards = await prisma.matchPlayerEvent.count({
+    where: {
+      matchId: match.id,
+      type: "YELLOW_CARD",
+      voidedAt: null,
+    },
+  });
+
+  assert.equal(activeYellowCards, 0);
+
+  const ownGoal = await createMatchPlayerEvent({
+    matchId: match.id,
+    type: "OWN_GOAL",
+    teamId: match.homeTeamId,
+    awardedTeamId: match.awayTeamId,
+    playerId: homePlayer.id,
+    expectedScoreVersion: 2,
+  });
+
+  const awayGoal = await createMatchPlayerEvent({
+    matchId: match.id,
+    type: "GOAL",
+    teamId: match.awayTeamId,
+    awardedTeamId: match.awayTeamId,
+    playerId: awayPlayer.id,
+    expectedScoreVersion: ownGoal.scoreVersion,
+  });
+
+  await applyMatchResult(match.id, MatchStatus.FINISHED, 0, 2);
+
+  const scorers = await listPublicTournamentScorers(TOURNAMENT_SLUG);
+
+  assert.equal(scorers.length, 1);
+  assert.equal(scorers[0]?.playerName, awayPlayer.displayName);
+  assert.equal(scorers[0]?.goals, 1);
+  assert.equal(scorers[0]?.yellowCards, 0);
+  assert.equal(awayGoal.awayScore, 2);
+});
+
+test("sequence allocation stays unique under concurrent event creation and duplicate goal taps", async () => {
+  const fixture = await createIntegrationFixture();
+  await persistCompetitionStructure(fixture);
+
+  const match = await prisma.match.findFirst({
+    where: {
+      tournamentId: fixture.tournamentId,
+      groupId: {
+        not: null,
+      },
+    },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
+    select: {
+      id: true,
+      homeTeamId: true,
+      awayTeamId: true,
+    },
+  });
+
+  assert(match?.homeTeamId);
+  assert(match?.awayTeamId);
+  const homeTeamId = match.homeTeamId;
+  const awayTeamId = match.awayTeamId;
+
+  await applyMatchResult(match.id, MatchStatus.LIVE, 0, 0);
+
+  const [homePlayer, awayPlayer] = await Promise.all([
+    prisma.player.findFirst({
+      where: { teamId: homeTeamId },
+      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    }),
+    prisma.player.findFirst({
+      where: { teamId: awayTeamId },
+      orderBy: [{ jerseyNumber: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    }),
+  ]);
+
+  assert(homePlayer?.id);
+  assert(awayPlayer?.id);
+
+  await Promise.all([
+    createMatchPlayerEvent({
+      matchId: match.id,
+      type: "YELLOW_CARD",
+      teamId: homeTeamId,
+      playerId: homePlayer.id,
+    }),
+    createMatchPlayerEvent({
+      matchId: match.id,
+      type: "RED_CARD",
+      teamId: awayTeamId,
+      playerId: awayPlayer.id,
+    }),
+  ]);
+
+  const concurrentCardEvents = await prisma.matchPlayerEvent.findMany({
+    where: { matchId: match.id },
+    orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
+    select: {
+      sequence: true,
+      type: true,
+    },
+  });
+
+  assert.deepEqual(
+    concurrentCardEvents.map((event) => event.sequence),
+    [1, 2],
+  );
+
+  const duplicateGoalAttempts = await Promise.allSettled([
+    createMatchPlayerEvent({
+      matchId: match.id,
+      type: "GOAL",
+      teamId: homeTeamId,
+      awardedTeamId: homeTeamId,
+      playerId: homePlayer.id,
+      expectedScoreVersion: 0,
+    }),
+    createMatchPlayerEvent({
+      matchId: match.id,
+      type: "GOAL",
+      teamId: homeTeamId,
+      awardedTeamId: homeTeamId,
+      playerId: homePlayer.id,
+      expectedScoreVersion: 0,
+    }),
+  ]);
+
+  assert.equal(
+    duplicateGoalAttempts.filter((attempt) => attempt.status === "fulfilled").length,
+    1,
+  );
+  assert.equal(
+    duplicateGoalAttempts.filter(
+      (attempt) =>
+        attempt.status === "rejected" &&
+        attempt.reason instanceof MatchPlayerEventError &&
+        attempt.reason.code === "CONFLICT",
+    ).length,
+    1,
+  );
+
+  const [goalEvents, scoredMatch] = await Promise.all([
+    prisma.matchPlayerEvent.findMany({
+      where: {
+        matchId: match.id,
+        type: "GOAL",
+        voidedAt: null,
+      },
+      select: {
+        id: true,
+      },
+    }),
+    prisma.match.findUnique({
+      where: { id: match.id },
+      select: {
+        homeScore: true,
+        awayScore: true,
+        scoreVersion: true,
+      },
+    }),
+  ]);
+
+  assert.equal(goalEvents.length, 1);
+  assert.deepEqual(scoredMatch, {
+    homeScore: 1,
+    awayScore: 0,
+    scoreVersion: 1,
+  });
+});
+
+test("approved registration players synchronize into Player rows and appear in the scorer selector", async () => {
+  const fixture = await createIntegrationFixture();
+  await persistCompetitionStructure(fixture);
+
+  const reviewer = await prisma.user.create({
+    data: {
+      email: `reviewer-${Date.now()}@sports-platform.local`,
+      name: "Roster Reviewer",
+      passwordHash: "test-password-hash",
+      role: "OWNER",
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  const registration = await createPendingTeamRegistration(
+    {
+      tournamentId: fixture.tournamentId,
+      tournamentSlug: TOURNAMENT_SLUG,
+      captainFirstName: "Giulia",
+      captainLastName: "Esposito",
+      captainEmail: "giulia@example.com",
+      captainPhone: "+39 333 0000000",
+      teamName: "Approved Roster FC",
+      notes: "",
+      players: [
+        {
+          firstName: "Luigi",
+          lastName: "Calabrese",
+          jerseyNumber: "9",
+          role: "Pivot",
+          sortOrder: 0,
+        },
+        {
+          firstName: "Christian",
+          lastName: "Proto",
+          jerseyNumber: "10",
+          role: "Laterale",
+          sortOrder: 1,
+        },
+      ],
+    },
+    { db: prisma },
+  );
+
+  await prisma.$transaction((transaction) =>
+    approvePendingTeamRegistrationRecord(transaction, {
+      registrationId: registration.registrationId,
+      tournamentSlug: TOURNAMENT_SLUG,
+      reviewedByUserId: reviewer.id,
+    }),
+  );
+
+  const approvedRegistration = await prisma.teamRegistration.findUnique({
+    where: { id: registration.registrationId },
+    select: {
+      teamId: true,
+      status: true,
+    },
+  });
+
+  assert.equal(approvedRegistration?.status, "APPROVED");
+  assert(approvedRegistration?.teamId);
+  const approvedTeamId = approvedRegistration.teamId;
+
+  const createdPlayers = await prisma.player.findMany({
+    where: {
+      teamId: approvedTeamId,
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      displayName: true,
+      jerseyNumber: true,
+      role: true,
+      teamId: true,
+    },
+  });
+
+  assert.deepEqual(
+    createdPlayers.map((player) => ({
+      firstName: player.firstName,
+      lastName: player.lastName,
+      displayName: player.displayName,
+      jerseyNumber: player.jerseyNumber,
+      role: player.role,
+      teamId: player.teamId,
+    })),
+    [
+      {
+        firstName: "Luigi",
+        lastName: "Calabrese",
+        displayName: "Luigi Calabrese",
+        jerseyNumber: "9",
+        role: "Pivot",
+        teamId: approvedTeamId,
+      },
+      {
+        firstName: "Christian",
+        lastName: "Proto",
+        displayName: "Christian Proto",
+        jerseyNumber: "10",
+        role: "Laterale",
+        teamId: approvedTeamId,
+      },
+    ],
+  );
+
+  const luigiPlayerId = createdPlayers.find((player) => player.firstName === "Luigi")?.id;
+  assert(luigiPlayerId);
+
+  await prisma.$transaction((transaction) =>
+    syncApprovedTeamPlayers(transaction, {
+      organizationId: fixture.organizationId,
+      teamId: approvedTeamId,
+      players: [
+        {
+          firstName: "Luigi",
+          lastName: "Calabrese",
+          jerseyNumber: "99",
+          role: "Pivot",
+          sortOrder: 0,
+        },
+        {
+          firstName: "Christian",
+          lastName: "Proto",
+          jerseyNumber: "10",
+          role: "Laterale",
+          sortOrder: 1,
+        },
+      ],
+    }),
+  );
+
+  await prisma.$transaction((transaction) =>
+    syncApprovedTeamPlayers(transaction, {
+      organizationId: fixture.organizationId,
+      teamId: approvedTeamId,
+      players: [
+        {
+          firstName: "Luigi",
+          lastName: "Calabrese",
+          jerseyNumber: "99",
+          role: "Pivot",
+          sortOrder: 0,
+        },
+        {
+          firstName: "Christian",
+          lastName: "Proto",
+          jerseyNumber: "10",
+          role: "Laterale",
+          sortOrder: 1,
+        },
+      ],
+    }),
+  );
+
+  const syncedPlayers = await prisma.player.findMany({
+    where: {
+      teamId: approvedTeamId,
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      jerseyNumber: true,
+    },
+  });
+
+  assert.equal(syncedPlayers.length, 2);
+  assert.equal(
+    syncedPlayers.find((player) => player.firstName === "Luigi")?.id,
+    luigiPlayerId,
+  );
+  assert.equal(
+    syncedPlayers.find((player) => player.firstName === "Luigi")?.jerseyNumber,
+    "99",
+  );
+
+  const selectorMatch = await prisma.match.create({
+    data: {
+      tournamentId: fixture.tournamentId,
+      homeTeamId: approvedTeamId,
+      awayTeamId: fixture.teamFixtures[0]?.teamId,
+      roundLabel: "Selector Check",
+      status: MatchStatus.LIVE,
+      homeScore: 0,
+      awayScore: 0,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  const eventContext = await readDashboardMatchEventContext(selectorMatch.id);
+
+  assert.deepEqual(
+    eventContext.homePlayers.map((player) => ({
+      displayName:
+        player.displayName?.trim().length
+          ? player.displayName.trim()
+          : `${player.firstName} ${player.lastName}`.trim(),
+      jerseyNumber: player.jerseyNumber,
+      teamId: player.teamId,
+    })),
+    [
+      {
+        displayName: "Christian Proto",
+        jerseyNumber: "10",
+        teamId: approvedTeamId,
+      },
+      {
+        displayName: "Luigi Calabrese",
+        jerseyNumber: "99",
+        teamId: approvedTeamId,
+      },
+    ],
+  );
+  assert(eventContext.homePlayers.every((player) => player.teamId === approvedTeamId));
+  assert(
+    eventContext.awayPlayers.every((player) => player.teamId === fixture.teamFixtures[0]?.teamId),
   );
 });

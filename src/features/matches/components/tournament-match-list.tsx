@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { MatchGoalSummary } from "@/features/matches/components/match-goal-summary";
 import { TeamMark } from "@/components/ui/team-mark";
 import { MatchLiveIndicator } from "@/features/matches/components/match-live-indicator";
 import type { MatchSummary } from "@/features/matches/types/match.types";
@@ -6,11 +9,13 @@ import { formatDateTimeLabel } from "@/lib/format-date";
 type TournamentMatchListProps = {
   matches: MatchSummary[];
   emptyMessage: string;
+  tournamentSlug?: string;
 };
 
 export function TournamentMatchList({
   matches,
   emptyMessage,
+  tournamentSlug,
 }: TournamentMatchListProps) {
   if (matches.length === 0) {
     return (
@@ -88,6 +93,17 @@ export function TournamentMatchList({
                 <TeamMark name={match.awayTeamName} />
               </div>
             </div>
+
+            {match.goalSummary.length > 0 ? (
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                <MatchGoalSummary
+                  items={match.goalSummary}
+                  homeTeamId={match.homeTeamId}
+                  awayTeamId={match.awayTeamId}
+                  compact
+                />
+              </div>
+            ) : null}
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white/80 px-4 py-3 text-sm">
@@ -111,9 +127,20 @@ export function TournamentMatchList({
                     ? "Rinvio comunicato"
                     : match.status === "CANCELLED"
                       ? "Partita annullata"
-                      : `${match.homeScore} - ${match.awayScore}`}
+              : `${match.homeScore} - ${match.awayScore}`}
             </span>
           </div>
+
+          {tournamentSlug ? (
+            <div className="mt-3 flex justify-end">
+              <Link
+                href={`/tournaments/${tournamentSlug}/matches/${match.id}`}
+                className="text-sm font-medium text-slate-700 hover:text-slate-950"
+              >
+                Cronologia eventi
+              </Link>
+            </div>
+          ) : null}
         </article>
       ))}
     </div>

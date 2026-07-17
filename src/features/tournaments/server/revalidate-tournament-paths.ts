@@ -10,6 +10,8 @@ export function revalidateTournamentPaths(slug: string, previousSlug?: string) {
   revalidatePath(`/tournaments/${slug}/teams`);
   revalidatePath(`/tournaments/${slug}/calendar`);
   revalidatePath(`/tournaments/${slug}/standings`);
+  revalidatePath(`/tournaments/${slug}/scorers`);
+  revalidatePath(`/tournaments/${slug}/matches`);
 
   if (previousSlug && previousSlug !== slug) {
     revalidatePath(`/dashboard/tournaments/${previousSlug}`);
@@ -18,5 +20,7 @@ export function revalidateTournamentPaths(slug: string, previousSlug?: string) {
     revalidatePath(`/tournaments/${previousSlug}/teams`);
     revalidatePath(`/tournaments/${previousSlug}/calendar`);
     revalidatePath(`/tournaments/${previousSlug}/standings`);
+    revalidatePath(`/tournaments/${previousSlug}/scorers`);
+    revalidatePath(`/tournaments/${previousSlug}/matches`);
   }
 }

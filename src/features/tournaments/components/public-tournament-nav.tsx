@@ -18,6 +18,7 @@ const sections = [
   { href: "/teams", label: "Squadre" },
   { href: "/calendar", label: "Calendario" },
   { href: "/standings", label: "Classifica" },
+  { href: "/scorers", label: "Marcatori" },
 ];
 
 export function PublicTournamentNav({ slug }: PublicTournamentNavProps) {

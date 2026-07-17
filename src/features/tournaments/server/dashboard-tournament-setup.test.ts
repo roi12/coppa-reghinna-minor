@@ -160,6 +160,9 @@ function buildMatches(count: number, withSchedule = false): MatchSummary[] {
     status: "SCHEDULED",
     homeScore: 0,
     awayScore: 0,
+    goalSummary: [],
+    latestEventSummary: null,
+    scoreReconciliation: null,
   }));
 }
 

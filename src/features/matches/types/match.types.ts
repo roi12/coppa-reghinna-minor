@@ -1,3 +1,9 @@
+import type {
+  MatchGoalSummaryItem,
+  MatchLatestEventSummary,
+  MatchScoreReconciliation,
+} from "@/features/matches/types/match-player-events.types";
+
 export type MatchSummary = {
   id: string;
   tournamentId: string;
@@ -20,4 +26,7 @@ export type MatchSummary = {
   status: "SCHEDULED" | "LIVE" | "FINISHED" | "POSTPONED" | "CANCELLED";
   homeScore: number;
   awayScore: number;
+  goalSummary: MatchGoalSummaryItem[];
+  latestEventSummary: MatchLatestEventSummary | null;
+  scoreReconciliation: MatchScoreReconciliation | null;
 };
