@@ -1,8 +1,4 @@
-import {
-  MatchParticipantSourceType,
-  MatchStatus,
-  TournamentStageType,
-} from "@prisma/client";
+import { MatchStatus, TournamentStageType } from "@prisma/client";
 
 import { assembleStandingsTable } from "@/features/standings/server/assemble-standings-table";
 import { calculateStandings } from "@/features/standings/server/calculate-standings";
@@ -46,12 +42,6 @@ type PreliminaryMatchDefinition = {
   awayTeamName: string;
   homeScore: number;
   awayScore: number;
-  homeParticipantSourceType?: MatchParticipantSourceType | null;
-  awayParticipantSourceType?: MatchParticipantSourceType | null;
-  homeSourceGroupId?: string | null;
-  awaySourceGroupId?: string | null;
-  homeSourceGroupPosition?: number | null;
-  awaySourceGroupPosition?: number | null;
 };
 
 type PreliminaryStandingsSnapshot = {
@@ -62,7 +52,7 @@ type PreliminaryStandingsSnapshot = {
   groupStandings: GroupStandingSummary[];
 };
 
-export function parseGroupStageConfiguration(configuration: unknown) {
+function parseGroupStageConfiguration(configuration: unknown) {
   if (!configuration || typeof configuration !== "object" || Array.isArray(configuration)) {
     return {};
   }
@@ -70,7 +60,7 @@ export function parseGroupStageConfiguration(configuration: unknown) {
   return configuration as Record<string, unknown>;
 }
 
-export function readConfiguredStandingsMode(
+function readConfiguredStandingsMode(
   stage: Pick<PreliminaryStageDefinition, "configuration">,
 ): PreliminaryStandingsMode | null {
   const configuration = parseGroupStageConfiguration(stage.configuration);
@@ -85,72 +75,6 @@ export function readConfiguredStandingsMode(
   }
 
   return null;
-}
-
-export function inferQualificationStandingsMode(
-  matches: Array<
-    Pick<
-      PreliminaryMatchDefinition,
-      | "stageType"
-      | "homeParticipantSourceType"
-      | "awayParticipantSourceType"
-      | "homeSourceGroupId"
-      | "awaySourceGroupId"
-      | "homeSourceGroupPosition"
-      | "awaySourceGroupPosition"
-    >
-  >,
-): PreliminaryStandingsMode | null {
-  const qualificationSlots = matches.flatMap((match) => {
-    if (match.stageType !== TournamentStageType.KNOCKOUT_STAGE) {
-      return [];
-    }
-
-    return [
-      {
-        sourceType: match.homeParticipantSourceType ?? null,
-        sourceGroupId: match.homeSourceGroupId ?? null,
-        sourceGroupPosition: match.homeSourceGroupPosition ?? null,
-      },
-      {
-        sourceType: match.awayParticipantSourceType ?? null,
-        sourceGroupId: match.awaySourceGroupId ?? null,
-        sourceGroupPosition: match.awaySourceGroupPosition ?? null,
-      },
-    ].filter((slot) => slot.sourceType === MatchParticipantSourceType.GROUP_POSITION);
-  });
-
-  if (qualificationSlots.length === 0) {
-    return null;
-  }
-
-  const globalSlots = qualificationSlots.filter(
-    (slot) => slot.sourceGroupId === null && Number.isInteger(slot.sourceGroupPosition),
-  );
-
-  if (globalSlots.length > 0) {
-    return "GLOBAL";
-  }
-
-  const groupedSlots = qualificationSlots.filter(
-    (slot) => slot.sourceGroupId !== null && Number.isInteger(slot.sourceGroupPosition),
-  );
-
-  if (groupedSlots.length === qualificationSlots.length) {
-    return "GROUPS";
-  }
-
-  return null;
-}
-
-export function buildConfiguredStandingsScopeUpdate(args: {
-  stage: Pick<PreliminaryStageDefinition, "configuration">;
-  mode: PreliminaryStandingsMode;
-}) {
-  return {
-    ...parseGroupStageConfiguration(args.stage.configuration),
-    standingsScope: args.mode,
-  };
 }
 
 function isFinishedPreliminaryMatch(
@@ -184,12 +108,6 @@ export function inferPreliminaryStandingsMode(args: {
 
   if (configuredMode) {
     return configuredMode;
-  }
-
-  const qualificationMode = inferQualificationStandingsMode(args.matches);
-
-  if (qualificationMode) {
-    return qualificationMode;
   }
 
   if ((args.stage.groupCount ?? 0) <= 1) {

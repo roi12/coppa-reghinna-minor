@@ -9,7 +9,6 @@ import { hasProtectedMatches } from "@/features/tournaments/server/competition-s
 import { generateCompetitionStructure } from "@/features/tournaments/server/generate-competition-structure";
 import { resolveTournamentKnockoutParticipants } from "@/features/tournaments/server/resolve-tournament-knockout-participants";
 import { scheduleCompetition } from "@/features/tournaments/server/schedule-competition";
-import { getTournamentStandingsSnapshot } from "@/features/standings/server/get-tournament-standings-snapshot";
 import {
   mapPersistedStagesToCompetitionInput,
   parseScheduleSlotStartMinutes,
@@ -408,8 +407,6 @@ export async function saveTournamentCompetitionSettingsAction(formData: FormData
         });
       }
     });
-
-    await getTournamentStandingsSnapshot(parsed.data.tournamentId);
 
     revalidateTournamentPaths(parsed.data.tournamentSlug);
 
