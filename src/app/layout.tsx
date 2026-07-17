@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Analytics } from "@vercel/analytics/next";
 
 import { BRAND } from "@/lib/brand";
 import { getSiteUrl } from "@/lib/site-url";
@@ -24,10 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" className="h-full antialiased">
-      <body className="min-h-full">
-        {children}
-        <Analytics />
-      </body>
+      <body className="min-h-full">{children}</body>
     </html>
   );
 }
