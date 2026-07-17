@@ -2,10 +2,12 @@ import { MatchParticipantSourceType, TournamentStageType } from "@prisma/client"
 import { cache } from "react";
 
 import {
+  buildGlobalQualificationResolutionSnapshot,
   buildQualificationResolutionSnapshot,
   type QualificationResolutionSnapshot,
 } from "@/features/tournaments/server/qualification-resolution";
 import { mapPersistedStagesToCompetitionInput } from "@/features/tournaments/server/tournament-competition";
+import { getTournamentStandingsSnapshot } from "@/features/standings/server/get-tournament-standings-snapshot";
 import { prisma } from "@/lib/prisma";
 
 export const getTournamentQualificationResolution = cache(
@@ -116,7 +118,39 @@ export const getTournamentQualificationResolution = cache(
     const groupStage = stageDefinitions.find((stage) => stage.type === "GROUP_STAGE");
     const knockoutStage = stageDefinitions.find((stage) => stage.type === "KNOCKOUT_STAGE");
 
-    if (!groupStage || !knockoutStage || groupStage.qualifiersPerGroup <= 0) {
+    if (!groupStage || !knockoutStage) {
+      return { unresolvedSlots: [] };
+    }
+
+    const standingsSnapshot = await getTournamentStandingsSnapshot(tournamentId);
+
+    if (standingsSnapshot.mode === "GLOBAL") {
+      return buildGlobalQualificationResolutionSnapshot({
+        standings: standingsSnapshot.standings,
+        qualifierCount: knockoutStage.knockoutTeamCount,
+        knockoutMatches: tournament.matches.map((match) => ({
+          id: match.id,
+          homeTeamId: match.homeTeamId,
+          awayTeamId: match.awayTeamId,
+          homeParticipantLocked: match.homeParticipantLocked,
+          awayParticipantLocked: match.awayParticipantLocked,
+          homeParticipantSourceType: match.homeParticipantSourceType as MatchParticipantSourceType | null,
+          awayParticipantSourceType: match.awayParticipantSourceType as MatchParticipantSourceType | null,
+          homeSourceGroupId: match.homeSourceGroupId,
+          awaySourceGroupId: match.awaySourceGroupId,
+          homeSourceGroupPosition: match.homeSourceGroupPosition,
+          awaySourceGroupPosition: match.awaySourceGroupPosition,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam,
+          homeSourceGroup: match.homeSourceGroup,
+          awaySourceGroup: match.awaySourceGroup,
+          roundLabel: match.roundLabel,
+        })),
+        sourceLabel: "Classifica generale",
+      });
+    }
+
+    if (groupStage.qualifiersPerGroup <= 0) {
       return { unresolvedSlots: [] };
     }
 
@@ -149,4 +183,3 @@ export const getTournamentQualificationResolution = cache(
     });
   },
 );
-

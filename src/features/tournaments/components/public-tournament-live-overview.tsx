@@ -6,7 +6,6 @@ import { TournamentMatchList } from "@/features/matches/components/tournament-ma
 import { StandingsTable } from "@/features/standings/components/standings-table";
 import { usePublicTournamentLiveState } from "@/features/tournaments/components/use-public-tournament-live-state";
 import type { PublicTournamentLiveStateTransport } from "@/features/tournaments/types/public-tournament-live-state.types";
-import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { BRAND } from "@/lib/brand";
 
 type PublicTournamentLiveOverviewProps = {
@@ -32,7 +31,7 @@ export function PublicTournamentLiveOverview({
   initialState,
 }: PublicTournamentLiveOverviewProps) {
   const { state, connectionStatus, errorMessage } = usePublicTournamentLiveState(slug, initialState);
-  const isGroupedTournament = isGroupedTournamentFormat(state.tournament.format);
+  const isGroupedTournament = state.tournament.preliminaryStandingsMode === "GROUPS";
   const completedMatches = state.matches.filter((match) => match.status === "FINISHED");
   const upcomingMatches = state.matches.filter((match) => match.status !== "FINISHED");
 
@@ -192,7 +191,7 @@ export function PublicTournamentLiveOverview({
               <p className="mt-1 text-sm text-slate-600">
                 {isGroupedTournament
                   ? "Per i tornei a gironi la classifica completa e le qualificazioni sono disponibili nella pagina dedicata."
-                  : "Ordinata con le regole standard: punti, differenza reti, gol fatti e nome squadra."}
+                  : "La classifica generale include i risultati di tutte le giornate concluse."}
               </p>
             </div>
             <Link

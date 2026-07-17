@@ -1,6 +1,6 @@
 import { MatchParticipantSourceType, MatchStatus, TournamentStageType } from "@prisma/client";
 
-import { calculateStandings } from "@/features/standings/server/calculate-standings";
+import { getTournamentStandingsSnapshot } from "@/features/standings/server/get-tournament-standings-snapshot";
 import { mapPersistedStagesToCompetitionInput } from "@/features/tournaments/server/tournament-competition";
 import { prisma } from "@/lib/prisma";
 
@@ -9,6 +9,8 @@ function hasAmbiguousRankingAtPosition(
     points: number;
     goalDifference: number;
     goalsFor: number;
+    wins: number;
+    teamId: string;
   }>,
   position: number,
 ) {
@@ -22,10 +24,73 @@ function hasAmbiguousRankingAtPosition(
     (candidate) =>
       candidate.points === row.points &&
       candidate.goalDifference === row.goalDifference &&
-      candidate.goalsFor === row.goalsFor,
+      candidate.goalsFor === row.goalsFor &&
+      candidate.wins === row.wins,
   );
 
   return tiedRows.length > 1;
+}
+
+function buildGlobalQualificationPositions(args: {
+  knockoutMatches: Array<{
+    id: string;
+    roundLabel: string | null;
+    homeParticipantSourceType: MatchParticipantSourceType | null;
+    awayParticipantSourceType: MatchParticipantSourceType | null;
+    homeSourceGroupPosition: number | null;
+    awaySourceGroupPosition: number | null;
+  }>;
+  qualifierCount: number;
+}) {
+  const slots = args.knockoutMatches.flatMap((match) => [
+    {
+      matchId: match.id,
+      matchLabel: match.roundLabel ?? "Partita",
+      side: "home" as const,
+      sourceType: match.homeParticipantSourceType,
+      explicitPosition: match.homeSourceGroupPosition,
+    },
+    {
+      matchId: match.id,
+      matchLabel: match.roundLabel ?? "Partita",
+      side: "away" as const,
+      sourceType: match.awayParticipantSourceType,
+      explicitPosition: match.awaySourceGroupPosition,
+    },
+  ]).filter((slot) => slot.sourceType === MatchParticipantSourceType.GROUP_POSITION);
+
+  const explicitPositions = slots.map((slot) => slot.explicitPosition);
+  const useExplicitPositions =
+    explicitPositions.every((position): position is number => Number.isInteger(position) && position !== null) &&
+    new Set(explicitPositions).size === explicitPositions.length &&
+    explicitPositions.every((position) => position >= 1 && position <= args.qualifierCount);
+
+  const sortedSlots = slots.sort((left, right) => {
+    if (useExplicitPositions && left.explicitPosition !== right.explicitPosition) {
+      return (left.explicitPosition as number) - (right.explicitPosition as number);
+    }
+
+    return (
+      left.matchLabel.localeCompare(right.matchLabel, undefined, { numeric: true, sensitivity: "base" }) ||
+      left.matchId.localeCompare(right.matchId) ||
+      left.side.localeCompare(right.side)
+    );
+  });
+
+  const positions = new Map<string, number>();
+  let fallbackPosition = 1;
+
+  for (const slot of sortedSlots) {
+    const position = useExplicitPositions ? (slot.explicitPosition as number) : fallbackPosition++;
+
+    if (position > args.qualifierCount) {
+      continue;
+    }
+
+    positions.set(`${slot.matchId}:${slot.side}`, position);
+  }
+
+  return positions;
 }
 
 export async function resolveTournamentKnockoutParticipants(tournamentId: string) {
@@ -63,85 +128,16 @@ export async function resolveTournamentKnockoutParticipants(tournamentId: string
     (
       stage,
     ): stage is Extract<(typeof stageDefinitions)[number], { type: "GROUP_STAGE" }> =>
-      stage.type === "GROUP_STAGE" && stage.groupCount > 1,
+      stage.type === "GROUP_STAGE",
+  );
+  const knockoutStage = stageDefinitions.find(
+    (
+      stage,
+    ): stage is Extract<(typeof stageDefinitions)[number], { type: "KNOCKOUT_STAGE" }> =>
+      stage.type === "KNOCKOUT_STAGE",
   );
 
-  const groups = await prisma.tournamentGroup.findMany({
-    where: { tournamentId: tournament.id },
-    orderBy: { sequence: "asc" },
-    select: {
-      id: true,
-      matches: {
-        where: {
-          stage: {
-            type: TournamentStageType.GROUP_STAGE,
-          },
-        },
-        select: {
-          status: true,
-          homeScore: true,
-          awayScore: true,
-          homeTeamId: true,
-          awayTeamId: true,
-          homeTeam: {
-            select: {
-              name: true,
-            },
-          },
-          awayTeam: {
-            select: {
-              name: true,
-            },
-          },
-        },
-      },
-    },
-  });
-
-  const resolvedGroupPositions = new Map<string, Map<number, string>>();
-
-  for (const group of groups) {
-    const allGroupMatchesCompleted = group.matches.every(
-      (match) =>
-        match.status === MatchStatus.FINISHED &&
-        match.homeScore !== null &&
-        match.awayScore !== null &&
-        match.homeTeamId !== null &&
-        match.awayTeamId !== null,
-    );
-
-    if (!allGroupMatchesCompleted) {
-      continue;
-    }
-
-    const rows = calculateStandings(
-      group.matches.map((match) => ({
-        homeTeamId: match.homeTeamId as string,
-        awayTeamId: match.awayTeamId as string,
-        homeTeamName: match.homeTeam?.name ?? "Squadra",
-        awayTeamName: match.awayTeam?.name ?? "Squadra",
-        homeScore: match.homeScore as number,
-        awayScore: match.awayScore as number,
-      })),
-    );
-
-    for (let position = 1; position <= (groupStage?.qualifiersPerGroup ?? 0); position += 1) {
-      if (hasAmbiguousRankingAtPosition(rows, position)) {
-        continue;
-      }
-
-      const row = rows[position - 1];
-
-      if (!row) {
-        continue;
-      }
-
-      const groupPositions = resolvedGroupPositions.get(group.id) ?? new Map<number, string>();
-      groupPositions.set(position, row.teamId);
-      resolvedGroupPositions.set(group.id, groupPositions);
-    }
-  }
-
+  const standingsSnapshot = await getTournamentStandingsSnapshot(tournamentId);
   const knockoutMatches = await prisma.match.findMany({
     where: {
       tournamentId: tournament.id,
@@ -152,6 +148,7 @@ export async function resolveTournamentKnockoutParticipants(tournamentId: string
     orderBy: [{ sequence: "asc" }, { createdAt: "asc" }],
     select: {
       id: true,
+      roundLabel: true,
       homeTeamId: true,
       awayTeamId: true,
       homeParticipantLocked: true,
@@ -183,6 +180,72 @@ export async function resolveTournamentKnockoutParticipants(tournamentId: string
     },
   });
 
+  const resolvedGroupPositions = new Map<string, Map<number, string>>();
+
+  if (standingsSnapshot.mode === "GROUPS" && groupStage && groupStage.qualifiersPerGroup > 0) {
+    for (const groupStanding of standingsSnapshot.groupStandings) {
+      const groupPositions = new Map<number, string>();
+
+      for (let position = 1; position <= groupStage.qualifiersPerGroup; position += 1) {
+        if (hasAmbiguousRankingAtPosition(groupStanding.rows, position)) {
+          continue;
+        }
+
+        const row = groupStanding.rows[position - 1];
+
+        if (row) {
+          groupPositions.set(position, row.teamId);
+        }
+      }
+
+      resolvedGroupPositions.set(groupStanding.groupId, groupPositions);
+    }
+  } else if (knockoutStage) {
+    const slotPositions = buildGlobalQualificationPositions({
+      knockoutMatches: knockoutMatches.map((match) => ({
+        id: match.id,
+        roundLabel: match.roundLabel,
+        homeParticipantSourceType: match.homeParticipantSourceType,
+        awayParticipantSourceType: match.awayParticipantSourceType,
+        homeSourceGroupPosition: match.homeSourceGroupPosition,
+        awaySourceGroupPosition: match.awaySourceGroupPosition,
+      })),
+      qualifierCount: knockoutStage.knockoutTeamCount,
+    });
+    const globalPositions = new Map<number, string>();
+
+    for (let position = 1; position <= knockoutStage.knockoutTeamCount; position += 1) {
+      if (hasAmbiguousRankingAtPosition(standingsSnapshot.standings, position)) {
+        continue;
+      }
+
+      const row = standingsSnapshot.standings[position - 1];
+
+      if (row) {
+        globalPositions.set(position, row.teamId);
+      }
+    }
+
+    resolvedGroupPositions.set("global-standings", globalPositions);
+
+    for (const match of knockoutMatches) {
+      for (const side of ["home", "away"] as const) {
+        const key = `${match.id}:${side}`;
+        const position = slotPositions.get(key);
+
+        if (!position) {
+          continue;
+        }
+
+        if (side === "home") {
+          match.homeSourceGroupPosition = position;
+        } else {
+          match.awaySourceGroupPosition = position;
+        }
+      }
+    }
+  }
+
   let updateCount = 0;
 
   for (const match of knockoutMatches) {
@@ -195,7 +258,15 @@ export async function resolveTournamentKnockoutParticipants(tournamentId: string
       const sourceMatch = side === "home" ? match.homeSourceMatch : match.awaySourceMatch;
 
       if (sourceType === MatchParticipantSourceType.GROUP_POSITION) {
-        if (!sourceGroupId || !sourceGroupPosition) {
+        if (!sourceGroupPosition) {
+          return null;
+        }
+
+        if (standingsSnapshot.mode === "GLOBAL") {
+          return resolvedGroupPositions.get("global-standings")?.get(sourceGroupPosition) ?? null;
+        }
+
+        if (!sourceGroupId) {
           return null;
         }
 

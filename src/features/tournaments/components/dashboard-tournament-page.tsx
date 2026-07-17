@@ -9,6 +9,8 @@ import { createTournamentMatchAction } from "@/features/matches/server/match-act
 import { listTournamentMatches } from "@/features/matches/server/list-tournament-matches";
 import { createTeamPlayerAction } from "@/features/players/server/player-actions";
 import { listTeamPlayers } from "@/features/players/server/list-team-players";
+import { StandingsTable } from "@/features/standings/components/standings-table";
+import { getTournamentStandingsSnapshot } from "@/features/standings/server/get-tournament-standings-snapshot";
 import { DashboardTeamRegistrationsPanel } from "@/features/team-registrations/components/dashboard-team-registrations-panel";
 import { readDashboardCaptainManageLinkFlash } from "@/features/team-registrations/server/captain-manage-link";
 import { listTournamentTeamRegistrations } from "@/features/team-registrations/server/list-tournament-team-registrations";
@@ -172,6 +174,7 @@ export async function DashboardTournamentPage({
     matches,
   });
   const stageVisibility = getKnockoutStageVisibilityState(tournament.stages);
+  const standingsSnapshot = await getTournamentStandingsSnapshot(tournament.id);
 
   return (
     <div className="grid gap-6">
@@ -763,6 +766,29 @@ export async function DashboardTournamentPage({
 
           <DashboardMatchResultsPanel matches={matches} />
         </article>
+
+        {standingsSnapshot.mode === "GLOBAL" ? (
+          <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-semibold tracking-tight">Classifica generale</h3>
+                <p className="mt-2 text-sm text-slate-600">
+                  La classifica generale include i risultati di tutte le giornate.
+                </p>
+              </div>
+              <span className="text-sm text-slate-500">
+                {standingsSnapshot.standings.length} squadre
+              </span>
+            </div>
+
+            <div className="mt-5">
+              <StandingsTable
+                rows={standingsSnapshot.standings}
+                emptyMessage="La classifica generale comparirà appena saranno disponibili risultati finali."
+              />
+            </div>
+          </article>
+        ) : null}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">

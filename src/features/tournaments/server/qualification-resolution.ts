@@ -173,6 +173,85 @@ function buildSlotKey(matchId: string, side: "home" | "away") {
   return `${matchId}:${side}`;
 }
 
+type GlobalQualificationSlotReference = {
+  matchId: string;
+  matchLabel: string;
+  side: "home" | "away";
+  position: number;
+  locked: boolean;
+  currentTeamId: string | null;
+  currentTeamName: string | null;
+};
+
+function buildGlobalQualificationSlotReferences(args: {
+  knockoutMatches: QualificationKnockoutMatch[];
+  qualifierCount: number;
+}) {
+  const slotReferences = args.knockoutMatches.flatMap((match) => {
+    const slots = [
+      {
+        matchId: match.id,
+        matchLabel: match.roundLabel ?? "Partita",
+        side: "home" as const,
+        locked: match.homeParticipantLocked,
+        currentTeamId: match.homeTeamId,
+        currentTeamName: match.homeTeam?.name ?? null,
+        sourceType: match.homeParticipantSourceType,
+        sourcePosition: match.homeSourceGroupPosition,
+      },
+      {
+        matchId: match.id,
+        matchLabel: match.roundLabel ?? "Partita",
+        side: "away" as const,
+        locked: match.awayParticipantLocked,
+        currentTeamId: match.awayTeamId,
+        currentTeamName: match.awayTeam?.name ?? null,
+        sourceType: match.awayParticipantSourceType,
+        sourcePosition: match.awaySourceGroupPosition,
+      },
+    ];
+
+    return slots.filter((slot) => slot.sourceType === MatchParticipantSourceType.GROUP_POSITION);
+  });
+
+  const explicitPositions = slotReferences.map((slot) => slot.sourcePosition);
+  const canUseExplicitPositions =
+    explicitPositions.every((position): position is number => Number.isInteger(position) && position !== null) &&
+    new Set(explicitPositions).size === explicitPositions.length &&
+    explicitPositions.every((position) => position >= 1 && position <= args.qualifierCount);
+
+  return slotReferences
+    .sort((left, right) => {
+      if (canUseExplicitPositions && left.sourcePosition !== right.sourcePosition) {
+        return (left.sourcePosition as number) - (right.sourcePosition as number);
+      }
+
+      return (
+        left.matchLabel.localeCompare(right.matchLabel, undefined, { numeric: true, sensitivity: "base" }) ||
+        left.matchId.localeCompare(right.matchId) ||
+        left.side.localeCompare(right.side)
+      );
+    })
+    .map((slot, index): GlobalQualificationSlotReference | null => {
+      const position = canUseExplicitPositions ? (slot.sourcePosition as number) : index + 1;
+
+      if (position > args.qualifierCount) {
+        return null;
+      }
+
+      return {
+        matchId: slot.matchId,
+        matchLabel: slot.matchLabel,
+        side: slot.side,
+        position,
+        locked: slot.locked,
+        currentTeamId: slot.currentTeamId,
+        currentTeamName: slot.currentTeamName,
+      };
+    })
+    .filter((slot): slot is GlobalQualificationSlotReference => slot !== null);
+}
+
 export function buildQualificationResolutionSnapshot(args: {
   groups: QualificationGroupInput[];
   knockoutMatches: QualificationKnockoutMatch[];
@@ -240,6 +319,54 @@ export function buildQualificationResolutionSnapshot(args: {
           });
         }
       }
+    }
+  }
+
+  return {
+    unresolvedSlots,
+  };
+}
+
+export function buildGlobalQualificationResolutionSnapshot(args: {
+  standings: Array<{
+    teamId: string;
+    teamName: string;
+    points: number;
+    goalDifference: number;
+    goalsFor: number;
+  }>;
+  qualifierCount: number;
+  knockoutMatches: QualificationKnockoutMatch[];
+  sourceLabel?: string;
+}): QualificationResolutionSnapshot {
+  const unresolvedSlots: QualificationResolutionSlot[] = [];
+  const slotReferences = buildGlobalQualificationSlotReferences({
+    knockoutMatches: args.knockoutMatches,
+    qualifierCount: args.qualifierCount,
+  });
+  const sourceLabel = args.sourceLabel ?? "Classifica generale";
+
+  for (let position = 1; position <= args.qualifierCount; position += 1) {
+    if (!hasAmbiguousRankingAtPosition(args.standings, position)) {
+      continue;
+    }
+
+    const candidates = buildCandidateTeams(args.standings, position);
+
+    for (const slot of slotReferences.filter((entry) => entry.position === position)) {
+      unresolvedSlots.push({
+        groupId: "global-standings",
+        groupName: sourceLabel,
+        groupSequence: 1,
+        position,
+        matchId: slot.matchId,
+        matchLabel: slot.matchLabel,
+        side: slot.side,
+        locked: slot.locked,
+        currentTeamId: slot.currentTeamId,
+        currentTeamName: slot.currentTeamName,
+        candidateTeams: candidates,
+      });
     }
   }
 

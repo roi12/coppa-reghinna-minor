@@ -11,6 +11,8 @@ export type StandingRow = {
   points: number;
 };
 
+export type PreliminaryStandingsMode = "GLOBAL" | "GROUPS";
+
 export type GroupStandingSummary = {
   groupId: string;
   groupName: string;
