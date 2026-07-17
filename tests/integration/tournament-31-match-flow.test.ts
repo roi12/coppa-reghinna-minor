@@ -925,6 +925,7 @@ test("flexible 31-match tournament flow persists structure, schedules calendar, 
   assert(qfBySourcePair.get("QF4"));
 
   const unresolvedSnapshot = buildQualificationResolutionSnapshot({
+    scope: "GROUPS",
     qualifiersPerGroup: 2,
     groups: await Promise.all(
       [

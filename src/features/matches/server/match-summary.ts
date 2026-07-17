@@ -83,7 +83,9 @@ function buildParticipantLabel(match: RawMatchSummary, side: "home" | "away") {
 
   switch (sourceType) {
     case MatchParticipantSourceType.GROUP_POSITION:
-      return `${sourceGroupPosition ?? 1}° ${sourceGroup?.name ?? "Gruppo"}`;
+      return sourceGroup?.name
+        ? `${sourceGroupPosition ?? 1}° ${sourceGroup.name}`
+        : `${sourceGroupPosition ?? 1}° classifica generale`;
     case MatchParticipantSourceType.MATCH_WINNER:
       return `Vincente ${sourceMatch?.roundLabel ?? "partita"}`;
     case MatchParticipantSourceType.MATCH_LOSER:

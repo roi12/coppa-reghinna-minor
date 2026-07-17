@@ -1,5 +1,6 @@
 import type { MatchSummary } from "@/features/matches/types/match.types";
 import type { GroupStandingSummary, StandingRow } from "@/features/standings/types/standings.types";
+import type { PreliminaryStandingsScope } from "@/features/standings/server/preliminary-standings";
 import type { normalizeTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 import { parseOptionalDate } from "@/lib/parse-date";
 
@@ -25,6 +26,8 @@ export type PublicTournamentLiveState = {
     teamCount: number;
     completedMatchCount: number;
     knockoutStageIsPublic: boolean | null;
+    preliminaryStandingsMode: PreliminaryStandingsScope;
+    preliminaryStandingsLabel: string;
   };
   matches: MatchSummary[];
   standings: StandingRow[];

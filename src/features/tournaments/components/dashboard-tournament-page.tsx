@@ -9,6 +9,10 @@ import { createTournamentMatchAction } from "@/features/matches/server/match-act
 import { listTournamentMatches } from "@/features/matches/server/list-tournament-matches";
 import { createTeamPlayerAction } from "@/features/players/server/player-actions";
 import { listTeamPlayers } from "@/features/players/server/list-team-players";
+import {
+  countFinishedPreliminaryMatches,
+  resolvePreliminaryStandingsScope,
+} from "@/features/standings/server/preliminary-standings";
 import { DashboardTeamRegistrationsPanel } from "@/features/team-registrations/components/dashboard-team-registrations-panel";
 import { readDashboardCaptainManageLinkFlash } from "@/features/team-registrations/server/captain-manage-link";
 import { listTournamentTeamRegistrations } from "@/features/team-registrations/server/list-tournament-team-registrations";
@@ -21,6 +25,7 @@ import { listTournamentTeams } from "@/features/teams/server/list-tournament-tea
 import { DashboardTournamentQualificationResolutionPanel } from "@/features/tournaments/components/dashboard-tournament-qualification-resolution-panel";
 import { DashboardTournamentCompetitionSettingsForm } from "@/features/tournaments/components/dashboard-tournament-competition-settings-form";
 import { DashboardTournamentGenerationForm } from "@/features/tournaments/components/dashboard-tournament-generation-form";
+import { DashboardTournamentPreliminaryStandingsScopeForm } from "@/features/tournaments/components/dashboard-tournament-preliminary-standings-scope-form";
 import { DashboardTournamentSetupSummary } from "@/features/tournaments/components/dashboard-tournament-setup-summary";
 import { deriveDashboardTournamentSetupState } from "@/features/tournaments/server/dashboard-tournament-setup";
 import { getDashboardTournamentBySlug } from "@/features/tournaments/server/get-dashboard-tournament-by-slug";
@@ -119,7 +124,7 @@ export async function DashboardTournamentPage({
   const isKnockoutTournament = isKnockoutTournamentFormat(tournament.format);
   const qualificationResolutionSnapshot: QualificationResolutionSnapshot = isKnockoutTournament
     ? await getTournamentQualificationResolution(tournament.id)
-    : { unresolvedSlots: [] };
+    : { unresolvedSlots: [], warningMessage: null };
   const defaultCompetitionSettings = buildDefaultCompetitionSettings(tournament.format);
   const persistedCompetitionStages = tournament.stages.length > 0
     ? mapPersistedStagesToCompetitionInput(tournament.stages).map((stage) =>
@@ -172,6 +177,25 @@ export async function DashboardTournamentPage({
     matches,
   });
   const stageVisibility = getKnockoutStageVisibilityState(tournament.stages);
+  const preliminaryStage = tournament.stages.find((stage) => stage.type === "GROUP_STAGE") ?? null;
+  const preliminaryStandingsScope = resolvePreliminaryStandingsScope({
+    tournamentFormat: tournament.format,
+    configuration: preliminaryStage?.configuration ?? null,
+  });
+  const finishedPreliminaryMatchCount = countFinishedPreliminaryMatches(
+    matches.map((match) => ({
+      stageId: match.stageId,
+      groupId: match.groupId,
+      status: match.status,
+      homeTeamId: match.homeTeamId,
+      awayTeamId: match.awayTeamId,
+      homeScore: match.homeScore,
+      awayScore: match.awayScore,
+      homeTeamName: match.homeTeamName,
+      awayTeamName: match.awayTeamName,
+    })),
+    preliminaryStage?.id ?? null,
+  );
 
   return (
     <div className="grid gap-6">
@@ -391,6 +415,15 @@ export async function DashboardTournamentPage({
                 : null
             }
           />
+
+          {preliminaryStage ? (
+            <DashboardTournamentPreliminaryStandingsScopeForm
+              tournamentId={tournament.id}
+              tournamentSlug={tournament.slug}
+              currentScope={preliminaryStandingsScope}
+              finishedPreliminaryMatchCount={finishedPreliminaryMatchCount}
+            />
+          ) : null}
 
           <article className="rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

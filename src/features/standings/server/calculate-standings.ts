@@ -72,7 +72,9 @@ export function calculateStandings(matches: FinishedMatch[]): StandingRow[] {
         right.points - left.points ||
         right.goalDifference - left.goalDifference ||
         right.goalsFor - left.goalsFor ||
-        left.teamName.localeCompare(right.teamName)
+        right.wins - left.wins ||
+        left.teamName.localeCompare(right.teamName, undefined, { sensitivity: "base" }) ||
+        left.teamId.localeCompare(right.teamId)
       );
     });
 }

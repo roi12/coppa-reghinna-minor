@@ -18,6 +18,15 @@ export function DashboardTournamentQualificationResolutionPanel({
   const unresolvedSlots = resolutionSnapshot.unresolvedSlots.filter((slot) => !slot.locked);
   const lockedSlots = resolutionSnapshot.unresolvedSlots.filter((slot) => slot.locked);
 
+  if (resolutionSnapshot.warningMessage) {
+    return (
+      <div className="mt-4 rounded-3xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
+        <p className="font-medium text-amber-950">Attenzione sulla qualificazione</p>
+        <p className="mt-2 leading-6">{resolutionSnapshot.warningMessage}</p>
+      </div>
+    );
+  }
+
   type GroupBlock = {
     groupId: string;
     groupName: string;

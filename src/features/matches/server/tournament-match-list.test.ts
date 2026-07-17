@@ -52,6 +52,8 @@ function buildState(match: MatchSummary): PublicTournamentLiveState {
       teamCount: 4,
       completedMatchCount: 0,
       knockoutStageIsPublic: true,
+      preliminaryStandingsMode: "GROUPS",
+      preliminaryStandingsLabel: "Fase a gironi",
     },
     matches: [match],
     standings: [],

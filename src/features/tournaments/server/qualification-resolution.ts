@@ -1,6 +1,10 @@
 import { MatchParticipantSourceType, MatchStatus } from "@prisma/client";
 
 import { calculateStandings } from "@/features/standings/server/calculate-standings";
+import {
+  GLOBAL_PRELIMINARY_STANDINGS_GROUP_ID,
+  type PreliminaryStandingsScope,
+} from "@/features/standings/server/preliminary-standings";
 
 type QualificationGroupMatch = {
   status: MatchStatus;
@@ -71,6 +75,7 @@ export type QualificationResolutionSlot = {
 
 export type QualificationResolutionSnapshot = {
   unresolvedSlots: QualificationResolutionSlot[];
+  warningMessage?: string | null;
 };
 
 export type ManualQualificationAssignment = {
@@ -121,6 +126,7 @@ function hasAmbiguousRankingAtPosition(
     points: number;
     goalDifference: number;
     goalsFor: number;
+    wins: number;
   }>,
   position: number,
 ) {
@@ -134,7 +140,8 @@ function hasAmbiguousRankingAtPosition(
     (candidate) =>
       candidate.points === row.points &&
       candidate.goalDifference === row.goalDifference &&
-      candidate.goalsFor === row.goalsFor,
+      candidate.goalsFor === row.goalsFor &&
+      candidate.wins === row.wins,
   );
 
   return tiedRows.length > 1;
@@ -147,6 +154,7 @@ function buildCandidateTeams(
     points: number;
     goalDifference: number;
     goalsFor: number;
+    wins: number;
   }>,
   position: number,
 ) {
@@ -161,7 +169,8 @@ function buildCandidateTeams(
       (candidate) =>
         candidate.points === row.points &&
         candidate.goalDifference === row.goalDifference &&
-        candidate.goalsFor === row.goalsFor,
+        candidate.goalsFor === row.goalsFor &&
+        candidate.wins === row.wins,
     )
     .map((candidate) => ({
       teamId: candidate.teamId,
@@ -173,11 +182,154 @@ function buildSlotKey(matchId: string, side: "home" | "away") {
   return `${matchId}:${side}`;
 }
 
+function buildCompletedRows(matches: QualificationGroupMatch[]) {
+  const completedMatches = matches.filter(hasCompletedGroupMatch);
+
+  if (completedMatches.length !== matches.length) {
+    return null;
+  }
+
+  return calculateStandings(
+    completedMatches.map((match) => ({
+      homeTeamId: match.homeTeamId as string,
+      awayTeamId: match.awayTeamId as string,
+      homeTeamName: match.homeTeam?.name ?? "Squadra",
+      awayTeamName: match.awayTeam?.name ?? "Squadra",
+      homeScore: match.homeScore as number,
+      awayScore: match.awayScore as number,
+    })),
+  );
+}
+
+function getGlobalQualificationPositions(knockoutMatches: QualificationKnockoutMatch[]) {
+  const positions = new Set<number>();
+  let hasGroupedSources = false;
+
+  for (const match of knockoutMatches) {
+    const slotSources = [
+      {
+        sourceType: match.homeParticipantSourceType,
+        sourceGroupId: match.homeSourceGroupId,
+        sourceGroupPosition: match.homeSourceGroupPosition,
+      },
+      {
+        sourceType: match.awayParticipantSourceType,
+        sourceGroupId: match.awaySourceGroupId,
+        sourceGroupPosition: match.awaySourceGroupPosition,
+      },
+    ];
+
+    for (const source of slotSources) {
+      if (source.sourceType !== MatchParticipantSourceType.GROUP_POSITION) {
+        continue;
+      }
+
+      if (source.sourceGroupId !== null) {
+        hasGroupedSources = true;
+        continue;
+      }
+
+      if (source.sourceGroupPosition) {
+        positions.add(source.sourceGroupPosition);
+      }
+    }
+  }
+
+  return {
+    hasGroupedSources,
+    positions: Array.from(positions.values()).sort((left, right) => left - right),
+  };
+}
+
 export function buildQualificationResolutionSnapshot(args: {
+  scope: PreliminaryStandingsScope;
   groups: QualificationGroupInput[];
   knockoutMatches: QualificationKnockoutMatch[];
   qualifiersPerGroup: number;
 }): QualificationResolutionSnapshot {
+  if (args.scope === "GLOBAL") {
+    const { hasGroupedSources, positions } = getGlobalQualificationPositions(args.knockoutMatches);
+
+    if (hasGroupedSources) {
+      return {
+        unresolvedSlots: [],
+        warningMessage:
+          "La fase finale usa ancora posizioni di girone già generate. Per questo torneo la qualificazione globale non può essere reinterpretata automaticamente senza cambiare le sorgenti delle partite.",
+      };
+    }
+
+    const rows = buildCompletedRows(args.groups.flatMap((group) => group.matches));
+
+    if (!rows) {
+      return {
+        unresolvedSlots: [],
+        warningMessage: null,
+      };
+    }
+
+    const unresolvedSlots: QualificationResolutionSlot[] = [];
+
+    for (const position of positions) {
+      if (!hasAmbiguousRankingAtPosition(rows, position)) {
+        continue;
+      }
+
+      const candidates = buildCandidateTeams(rows, position);
+
+      for (const match of args.knockoutMatches) {
+        const sideSources = [
+          {
+            side: "home" as const,
+            sourceType: match.homeParticipantSourceType,
+            sourceGroupId: match.homeSourceGroupId,
+            sourceGroupPosition: match.homeSourceGroupPosition,
+            currentTeamId: match.homeTeamId,
+            currentTeamName: match.homeTeam?.name ?? null,
+            locked: match.homeParticipantLocked,
+          },
+          {
+            side: "away" as const,
+            sourceType: match.awayParticipantSourceType,
+            sourceGroupId: match.awaySourceGroupId,
+            sourceGroupPosition: match.awaySourceGroupPosition,
+            currentTeamId: match.awayTeamId,
+            currentTeamName: match.awayTeam?.name ?? null,
+            locked: match.awayParticipantLocked,
+          },
+        ];
+
+        for (const source of sideSources) {
+          if (
+            source.sourceType !== MatchParticipantSourceType.GROUP_POSITION ||
+            source.sourceGroupId !== null ||
+            source.sourceGroupPosition !== position
+          ) {
+            continue;
+          }
+
+          unresolvedSlots.push({
+            groupId: GLOBAL_PRELIMINARY_STANDINGS_GROUP_ID,
+            groupName: "Classifica generale",
+            groupSequence: 1,
+            position,
+            matchId: match.id,
+            matchLabel: match.roundLabel ?? "Partita",
+            side: source.side,
+            locked: source.locked,
+            currentTeamId: source.currentTeamId,
+            currentTeamName: source.currentTeamName,
+            candidateTeams: candidates,
+          });
+        }
+      }
+    }
+
+    return {
+      unresolvedSlots,
+      warningMessage: null,
+    };
+  }
+
   const unresolvedSlots: QualificationResolutionSlot[] = [];
 
   for (const group of args.groups) {
@@ -245,6 +397,7 @@ export function buildQualificationResolutionSnapshot(args: {
 
   return {
     unresolvedSlots,
+    warningMessage: null,
   };
 }
 

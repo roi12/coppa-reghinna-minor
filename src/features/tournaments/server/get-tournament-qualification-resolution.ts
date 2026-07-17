@@ -1,6 +1,7 @@
 import { MatchParticipantSourceType, TournamentStageType } from "@prisma/client";
 import { cache } from "react";
 
+import { resolvePreliminaryStandingsScope } from "@/features/standings/server/preliminary-standings";
 import {
   buildQualificationResolutionSnapshot,
   type QualificationResolutionSnapshot,
@@ -13,7 +14,9 @@ export const getTournamentQualificationResolution = cache(
     const tournament = await prisma.tournament.findUnique({
       where: { id: tournamentId },
       select: {
+        format: true,
         stages: {
+          orderBy: { order: "asc" },
           select: {
             id: true,
             order: true,
@@ -109,7 +112,7 @@ export const getTournamentQualificationResolution = cache(
     });
 
     if (!tournament) {
-      return { unresolvedSlots: [] };
+      return { unresolvedSlots: [], warningMessage: null };
     }
 
     const stageDefinitions = mapPersistedStagesToCompetitionInput(tournament.stages);
@@ -117,10 +120,18 @@ export const getTournamentQualificationResolution = cache(
     const knockoutStage = stageDefinitions.find((stage) => stage.type === "KNOCKOUT_STAGE");
 
     if (!groupStage || !knockoutStage || groupStage.qualifiersPerGroup <= 0) {
-      return { unresolvedSlots: [] };
+      return { unresolvedSlots: [], warningMessage: null };
     }
 
+    const preliminaryStage =
+      tournament.stages.find((stage) => stage.type === TournamentStageType.GROUP_STAGE) ?? null;
+    const scope = resolvePreliminaryStandingsScope({
+      tournamentFormat: tournament.format,
+      configuration: preliminaryStage?.configuration ?? null,
+    });
+
     return buildQualificationResolutionSnapshot({
+      scope,
       qualifiersPerGroup: groupStage.qualifiersPerGroup,
       groups: tournament.groups.map((group) => ({
         id: group.id,
@@ -149,4 +160,3 @@ export const getTournamentQualificationResolution = cache(
     });
   },
 );
-

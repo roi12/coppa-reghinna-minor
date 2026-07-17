@@ -100,6 +100,16 @@ export function mapPersistedMatchToDefinition(
 
     switch (participantSourceType) {
       case MatchParticipantSourceType.GROUP_POSITION:
+        if (!sourceGroupId) {
+          return {
+            type: "GROUP_POSITION",
+            groupId: "",
+            groupName: "Classifica generale",
+            position: sourceGroupPosition ?? 1,
+            label: `${sourceGroupPosition ?? 1}° classifica generale`,
+          };
+        }
+
         return {
           type: "GROUP_POSITION",
           groupId: sourceGroupId ?? "",

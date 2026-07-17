@@ -80,6 +80,7 @@ function buildKnockoutMatch(overrides: Partial<{
 
 test("no random qualifier is selected when positions are tied", () => {
   const snapshot = buildQualificationResolutionSnapshot({
+    scope: "GROUPS",
     qualifiersPerGroup: 2,
     groups: [
       {
@@ -105,6 +106,7 @@ test("no random qualifier is selected when positions are tied", () => {
 
 test("manual resolution populates the intended quarter-final slots", () => {
   const snapshot = buildQualificationResolutionSnapshot({
+    scope: "GROUPS",
     qualifiersPerGroup: 2,
     groups: [
       {
@@ -172,6 +174,7 @@ test("manual resolution populates the intended quarter-final slots", () => {
 
 test("locked participants are not overwritten", () => {
   const snapshot = buildQualificationResolutionSnapshot({
+    scope: "GROUPS",
     qualifiersPerGroup: 2,
     groups: [
       {
@@ -211,6 +214,7 @@ test("locked participants are not overwritten", () => {
 
 test("duplicate manual assignments are rejected", () => {
   const snapshot = buildQualificationResolutionSnapshot({
+    scope: "GROUPS",
     qualifiersPerGroup: 2,
     groups: [
       {
@@ -245,4 +249,63 @@ test("duplicate manual assignments are rejected", () => {
       ]),
     /non è più disponibile/i,
   );
+});
+
+test("global qualification ties are reported against the general standings", () => {
+  const snapshot = buildQualificationResolutionSnapshot({
+    scope: "GLOBAL",
+    qualifiersPerGroup: 0,
+    groups: [
+      {
+        id: "group-a",
+        name: "Group A",
+        sequence: 1,
+        matches: buildGroupMatches("a"),
+      },
+      {
+        id: "group-b",
+        name: "Group B",
+        sequence: 2,
+        matches: buildGroupMatches("b"),
+      },
+    ],
+    knockoutMatches: [
+      buildKnockoutMatch({
+        id: "qf-1",
+        homeSourceGroupId: null,
+        awaySourceGroupId: null,
+        homeSourceGroupPosition: 1,
+        awaySourceGroupPosition: 2,
+      }),
+    ],
+  });
+
+  assert.equal(snapshot.warningMessage, null);
+  assert(snapshot.unresolvedSlots.length > 0);
+  assert(snapshot.unresolvedSlots.every((slot) => slot.groupName === "Classifica generale"));
+});
+
+test("global qualification warns instead of reinterpreting grouped knockout sources", () => {
+  const snapshot = buildQualificationResolutionSnapshot({
+    scope: "GLOBAL",
+    qualifiersPerGroup: 0,
+    groups: [
+      {
+        id: "group-a",
+        name: "Group A",
+        sequence: 1,
+        matches: buildGroupMatches("a"),
+      },
+    ],
+    knockoutMatches: [
+      buildKnockoutMatch({
+        homeSourceGroupId: "group-a",
+        awaySourceGroupId: null,
+        awaySourceGroupPosition: 2,
+      }),
+    ],
+  });
+
+  assert.equal(snapshot.unresolvedSlots.length, 0);
+  assert.match(snapshot.warningMessage ?? "", /non può essere reinterpretata automaticamente/i);
 });
