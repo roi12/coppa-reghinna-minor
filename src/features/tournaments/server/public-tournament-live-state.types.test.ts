@@ -55,8 +55,6 @@ function buildState(overrides: Partial<PublicTournamentLiveState> = {}): PublicT
       teamCount: 4,
       completedMatchCount: 1,
       knockoutStageIsPublic: true,
-      preliminaryStandingsMode: "GROUPS",
-      preliminaryStandingsLabel: "Fase a gironi",
     },
     matches: [buildMatch()],
     standings: [],

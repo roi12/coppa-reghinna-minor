@@ -61,11 +61,6 @@ export const matchSummarySelect = {
       isPublic: true,
     },
   },
-  group: {
-    select: {
-      name: true,
-    },
-  },
 } satisfies Prisma.MatchSelect;
 
 type RawMatchSummary = Prisma.MatchGetPayload<{
@@ -122,7 +117,6 @@ export function mapMatchSummary(match: RawMatchSummary): MatchSummary {
     stageType: match.stage?.type ?? null,
     stageIsPublic: match.stage?.isPublic ?? null,
     groupId: match.groupId,
-    groupName: match.group?.name ?? null,
     homeTeamId: match.homeTeamId,
     awayTeamId: match.awayTeamId,
     homeTeamName: buildParticipantLabel(match, "home"),

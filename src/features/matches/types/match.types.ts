@@ -5,7 +5,6 @@ export type MatchSummary = {
   stageType?: "GROUP_STAGE" | "KNOCKOUT_STAGE" | null;
   stageIsPublic?: boolean | null;
   groupId: string | null;
-  groupName?: string | null;
   homeTeamId: string | null;
   awayTeamId: string | null;
   homeTeamName: string;

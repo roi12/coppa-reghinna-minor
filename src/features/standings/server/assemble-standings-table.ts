@@ -25,9 +25,7 @@ export function sortStandings(left: StandingRow, right: StandingRow) {
     right.points - left.points ||
     right.goalDifference - left.goalDifference ||
     right.goalsFor - left.goalsFor ||
-    right.wins - left.wins ||
-    left.teamName.localeCompare(right.teamName) ||
-    left.teamId.localeCompare(right.teamId)
+    left.teamName.localeCompare(right.teamName)
   );
 }
 

@@ -52,8 +52,6 @@ function buildState(match: MatchSummary): PublicTournamentLiveState {
       teamCount: 4,
       completedMatchCount: 0,
       knockoutStageIsPublic: true,
-      preliminaryStandingsMode: "GROUPS",
-      preliminaryStandingsLabel: "Fase a gironi",
     },
     matches: [match],
     standings: [],
@@ -142,5 +140,5 @@ test("match list renders live and finished matches after repeated refresh cycles
   );
 
   assert.match(liveMarkup, /Live Now/);
-  assert.match(finishedMarkup, /Full Time|FULL TIME|Risultato finale/);
+  assert.match(finishedMarkup, /FULL TIME|Risultato finale/);
 });

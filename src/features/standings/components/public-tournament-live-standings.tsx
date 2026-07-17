@@ -3,6 +3,7 @@
 import { StandingsTable } from "@/features/standings/components/standings-table";
 import { usePublicTournamentLiveState } from "@/features/tournaments/components/use-public-tournament-live-state";
 import type { PublicTournamentLiveStateTransport } from "@/features/tournaments/types/public-tournament-live-state.types";
+import { isGroupedTournamentFormat } from "@/features/tournaments/utils/tournament-format";
 
 type PublicTournamentLiveStandingsProps = {
   slug: string;
@@ -14,7 +15,7 @@ export function PublicTournamentLiveStandings({
   initialState,
 }: PublicTournamentLiveStandingsProps) {
   const { state, connectionStatus, errorMessage } = usePublicTournamentLiveState(slug, initialState);
-  const isGroupedTournament = state.tournament.preliminaryStandingsMode === "GROUPS";
+  const isGroupedTournament = isGroupedTournamentFormat(state.tournament.format);
   const leader = state.standings[0];
   const underfilledGroups = state.groupStandings.filter((group) => group.teamCount < 2);
   const totalGroupedTeams = state.groupStandings.reduce((count, group) => count + group.teamCount, 0);
@@ -27,13 +28,11 @@ export function PublicTournamentLiveStandings({
     <div className="grid gap-6">
       <section className="grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
         <article className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
-          <h2 className="text-xl font-semibold tracking-tight text-slate-950">
-            {state.tournament.preliminaryStandingsLabel}
-          </h2>
+          <h2 className="text-xl font-semibold tracking-tight text-slate-950">Classifica</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
             {isGroupedTournament
               ? "Ogni girone ha una classifica separata ordinata per punti, differenza reti, gol fatti e nome squadra."
-              : "Le squadre sono ordinate per punti, differenza reti, gol fatti, vittorie e nome squadra."}
+              : "Le squadre sono ordinate per punti, differenza reti, gol fatti e nome squadra."}
           </p>
           <p className="mt-3 text-xs leading-5 text-slate-500">
             Legenda: P = partite, V = vittorie, N = pareggi, S = sconfitte, GF = gol fatti, GA = gol subiti, DR = differenza reti, Pt = punti.
@@ -154,11 +153,9 @@ export function PublicTournamentLiveStandings({
         <section className="rounded-[1.75rem] border border-slate-300 bg-white/92 p-5 shadow-sm sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h3 className="text-lg font-semibold tracking-tight text-slate-950">
-                Classifica generale
-              </h3>
+              <h3 className="text-lg font-semibold tracking-tight text-slate-950">Classifica completa</h3>
               <p className="mt-1 text-sm text-slate-600">
-                La classifica generale include i risultati di tutte le giornate.
+                Da mobile trovi una vista a schede; sugli schermi più larghi compare la tabella completa.
               </p>
             </div>
             <span className="text-sm text-slate-500">Aggiornata solo con i risultati finali</span>

@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { TeamMark } from "@/components/ui/team-mark";
 import { MatchLiveIndicator } from "@/features/matches/components/match-live-indicator";
 import type { MatchSummary } from "@/features/matches/types/match.types";
-import { parseOptionalDate } from "@/lib/parse-date";
+import { formatDateTimeLabel } from "@/lib/format-date";
 
 type DashboardLiveMatchControlsProps = {
   match: MatchSummary;
@@ -15,23 +15,6 @@ type MatchControlState = Pick<
   MatchSummary,
   "status" | "homeScore" | "awayScore" | "scoreVersion" | "lastScoreUpdatedAt"
 >;
-
-const organizerDateTimeFormatter = new Intl.DateTimeFormat("it-IT", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-  timeZone: "Europe/Rome",
-});
-
-const primaryGoalButtonClass =
-  "min-h-11 rounded-full bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-red-200 transition enabled:hover:bg-red-500 disabled:opacity-50";
-const secondaryActionButtonClass =
-  "min-h-11 rounded-full border border-slate-300 px-3.5 py-2.5 text-sm font-medium text-slate-700 transition enabled:hover:border-slate-400 enabled:hover:bg-slate-50 disabled:opacity-50";
-const utilityActionButtonClass =
-  "min-h-10 rounded-full border px-3.5 py-2 text-sm font-medium transition disabled:opacity-50";
 
 async function readLatestMatchState(matchId: string): Promise<MatchControlState> {
   const response = await fetch(`/api/dashboard/matches/${matchId}`, {
@@ -49,23 +32,6 @@ async function readLatestMatchState(matchId: string): Promise<MatchControlState>
     ...payload,
     lastScoreUpdatedAt: payload.lastScoreUpdatedAt ? new Date(payload.lastScoreUpdatedAt) : null,
   };
-}
-
-function buildTeamAbbreviation(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((segment) => segment.slice(0, 3))
-    .join(" ")
-    .toUpperCase();
-}
-
-function formatOrganizerMatchDateTime(date: Date | string | null | undefined) {
-  const validDate = parseOptionalDate(date);
-
-  return validDate ? organizerDateTimeFormatter.format(validDate).replace(",", " •") : "Data da definire";
 }
 
 export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControlsProps) {
@@ -186,99 +152,55 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
 
   const isLive = state.status === "LIVE";
   const isFinished = state.status === "FINISHED";
-  const homeAbbreviation = buildTeamAbbreviation(match.homeTeamName);
-  const awayAbbreviation = buildTeamAbbreviation(match.awayTeamName);
 
   return (
-    <section className="w-full max-w-full min-w-0 rounded-[1.75rem] border border-slate-200 bg-slate-50 p-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] shadow-sm sm:p-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+    <section className="w-full max-w-full min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
             {match.roundLabel ?? "Partita"}
           </p>
-          <p className="text-sm font-medium leading-5 text-slate-900">
-            {formatOrganizerMatchDateTime(match.startsAt)}
-          </p>
-          <p className="truncate text-xs leading-5 text-slate-500">
-            {match.locationLabel ?? "Campo da definire"}
+          <p className="mt-1 text-sm text-slate-600">
+            {formatDateTimeLabel(match.startsAt)}
+            {match.locationLabel ? ` · ${match.locationLabel}` : ""}
           </p>
         </div>
-
-        <div className="shrink-0">
-          <MatchLiveIndicator status={state.status} />
-        </div>
+        <MatchLiveIndicator status={state.status} />
       </div>
 
-      <div className="mt-3 rounded-[1.5rem] bg-white px-3.5 py-4 shadow-sm sm:px-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5 sm:gap-3">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <TeamMark name={match.homeTeamName} size="sm" />
+      <div className="mt-4 rounded-[1.75rem] bg-white px-4 py-5 shadow-sm">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
+          <div className="flex items-center gap-3">
+            <TeamMark name={match.homeTeamName} />
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Casa
-              </p>
-              <p className="truncate text-sm font-semibold text-slate-900">{homeAbbreviation}</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Casa</p>
+              <p className="truncate text-base font-semibold text-slate-950">{match.homeTeamName}</p>
             </div>
           </div>
-          <div className="rounded-2xl bg-slate-950 px-3.5 py-2 text-center text-white shadow-sm">
-            <p className="text-[1.65rem] font-semibold leading-none tabular-nums sm:text-4xl">
+          <div className="rounded-[1.35rem] bg-slate-950 px-4 py-3 text-center text-white">
+            <p className="text-3xl font-semibold tabular-nums sm:text-4xl">
               {state.homeScore} - {state.awayScore}
             </p>
           </div>
-          <div className="flex min-w-0 items-center justify-end gap-2.5">
+          <div className="flex items-center justify-end gap-3">
             <div className="min-w-0 text-right">
-              <p className="truncate text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Trasferta
-              </p>
-              <p className="truncate text-sm font-semibold text-slate-900">{awayAbbreviation}</p>
+              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
+              <p className="truncate text-base font-semibold text-slate-950">{match.awayTeamName}</p>
             </div>
-            <TeamMark name={match.awayTeamName} size="sm" />
+            <TeamMark name={match.awayTeamName} />
           </div>
-        </div>
-
-        <div className="mt-3 grid grid-cols-2 gap-3 text-sm leading-5">
-          <p className="min-w-0 text-left font-medium text-slate-800">{match.homeTeamName}</p>
-          <p className="min-w-0 text-right font-medium text-slate-800">{match.awayTeamName}</p>
-        </div>
-
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-slate-50 px-3 py-2.5 text-xs sm:text-sm">
-          <span className="font-medium uppercase tracking-[0.14em] text-slate-500">
-            {match.status === "FINISHED"
-              ? "Finale"
-              : match.status === "LIVE"
-                ? "Aggiornamento"
-                : match.status === "SCHEDULED"
-                  ? "Calcio d'inizio"
-                  : "Stato partita"}
-          </span>
-          <span className="min-w-0 truncate text-right font-semibold text-slate-900">
-            {match.status === "SCHEDULED"
-              ? formatOrganizerMatchDateTime(match.startsAt)
-              : match.status === "LIVE"
-                ? state.lastScoreUpdatedAt
-                  ? `Agg. ${formatOrganizerMatchDateTime(state.lastScoreUpdatedAt)}`
-                  : "Diretta in corso"
-                : match.status === "POSTPONED"
-                  ? "Partita rinviata"
-                  : match.status === "CANCELLED"
-                    ? "Partita annullata"
-                    : `${state.homeScore} - ${state.awayScore}`}
-          </span>
         </div>
       </div>
 
-      <div className="mt-3 grid gap-3">
-        <div className="rounded-[1.35rem] bg-white px-3.5 py-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Casa</p>
-              <p className="truncate text-sm font-semibold text-slate-900">{match.homeTeamName}</p>
-            </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-[1.5rem] bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">{match.homeTeamName}</p>
+          <div className="mt-3 flex gap-3">
             <button
               type="button"
               disabled={!isLive || isPending}
               onClick={() => sendAction("decrement_home")}
-              className={`${secondaryActionButtonClass} shrink-0`}
+              className="min-h-12 rounded-full border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
             >
               -1
             </button>
@@ -286,26 +208,21 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               type="button"
               disabled={!isLive || isPending}
               onClick={() => sendAction("increment_home")}
-              className={`${primaryGoalButtonClass} min-w-[7.75rem] shrink-0`}
+              className="min-h-12 flex-1 rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
             >
               +1 Goal
             </button>
           </div>
         </div>
 
-        <div className="rounded-[1.35rem] bg-white px-3.5 py-3 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                Trasferta
-              </p>
-              <p className="truncate text-sm font-semibold text-slate-900">{match.awayTeamName}</p>
-            </div>
+        <div className="rounded-[1.5rem] bg-white p-4 shadow-sm">
+          <p className="text-sm font-semibold text-slate-900">{match.awayTeamName}</p>
+          <div className="mt-3 flex gap-3">
             <button
               type="button"
               disabled={!isLive || isPending}
               onClick={() => sendAction("decrement_away")}
-              className={`${secondaryActionButtonClass} shrink-0`}
+              className="min-h-12 rounded-full border border-slate-300 px-4 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
             >
               -1
             </button>
@@ -313,7 +230,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               type="button"
               disabled={!isLive || isPending}
               onClick={() => sendAction("increment_away")}
-              className={`${primaryGoalButtonClass} min-w-[7.75rem] shrink-0`}
+              className="min-h-12 flex-1 rounded-full bg-red-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
             >
               +1 Goal
             </button>
@@ -321,56 +238,45 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         </div>
       </div>
 
-      <div className="mt-3 rounded-[1.35rem] bg-white px-3.5 py-3 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-              Correzione rapida
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Usa questi campi solo per rettifiche manuali del punteggio.
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-3 grid gap-2.5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-          <label className="grid gap-1.5 text-xs font-medium text-slate-600">
-            Casa
+      <div className="mt-4 rounded-[1.5rem] bg-white p-4 shadow-sm">
+        <div className="grid gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_auto]">
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
+            Correzione casa
             <input
               type="number"
               min="0"
               value={homeInput}
               onChange={(event) => setHomeInput(event.target.value)}
-              className="min-h-10 rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              className="min-h-12 rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900"
             />
           </label>
-          <label className="grid gap-1.5 text-xs font-medium text-slate-600">
-            Ospite
+          <label className="grid gap-2 text-sm font-medium text-slate-700">
+            Correzione ospite
             <input
               type="number"
               min="0"
               value={awayInput}
               onChange={(event) => setAwayInput(event.target.value)}
-              className="min-h-10 rounded-2xl border border-slate-300 px-3 py-2 text-sm text-slate-900"
+              className="min-h-12 rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900"
             />
           </label>
           <button
             type="button"
             disabled={!isLive || isPending}
             onClick={handleSetScore}
-            className="min-h-10 rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition enabled:hover:bg-slate-800 disabled:opacity-50"
+            className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
           >
-            Applica
+            Imposta punteggio
           </button>
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2.5 sm:flex sm:flex-wrap sm:gap-3">
+      <div className="mt-4 flex flex-wrap gap-3">
         <button
           type="button"
           disabled={state.status !== "SCHEDULED" || isPending}
           onClick={() => sendAction("start")}
-          className="min-h-11 rounded-full bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-emerald-500 disabled:opacity-50"
+          className="min-h-12 rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           Start Match
         </button>
@@ -378,7 +284,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={!isLive || isPending}
           onClick={handleFinish}
-          className="min-h-11 rounded-full bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition enabled:hover:bg-slate-800 disabled:opacity-50"
+          className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
         >
           Finish Match
         </button>
@@ -386,7 +292,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={!isLive || isPending}
           onClick={() => sendAction("return_to_scheduled")}
-          className={secondaryActionButtonClass}
+          className="min-h-12 rounded-full border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
         >
           Return to Scheduled
         </button>
@@ -394,7 +300,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={isPending}
           onClick={() => sendAction("postpone")}
-          className={`${utilityActionButtonClass} border-amber-300 text-amber-800 enabled:hover:bg-amber-50`}
+          className="min-h-12 rounded-full border border-amber-300 px-5 py-3 text-sm font-medium text-amber-800 disabled:opacity-50"
         >
           Postpone
         </button>
@@ -402,7 +308,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={isPending}
           onClick={() => sendAction("cancel")}
-          className={`${utilityActionButtonClass} border-slate-300 text-slate-700 enabled:hover:bg-slate-50`}
+          className="min-h-12 rounded-full border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
         >
           Cancel
         </button>
@@ -410,7 +316,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={!isFinished || isPending}
           onClick={handleReopen}
-          className={`${utilityActionButtonClass} border-red-300 text-red-700 enabled:hover:bg-red-50`}
+          className="min-h-12 rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-700 disabled:opacity-50"
         >
           Reopen Match
         </button>
@@ -418,16 +324,16 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={isPending}
           onClick={() => sendAction("undo")}
-          className={`${utilityActionButtonClass} col-span-2 border-slate-300 text-slate-700 enabled:hover:bg-slate-50 sm:col-auto`}
+          className="min-h-12 rounded-full border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
         >
           Undo Last Change
         </button>
       </div>
 
-      <div className="mt-3 flex flex-col gap-1.5 text-xs sm:text-sm">
+      <div className="mt-4 flex flex-col gap-2 text-sm">
         {state.lastScoreUpdatedAt ? (
           <p className="text-slate-500">
-            Ultimo aggiornamento: {formatOrganizerMatchDateTime(state.lastScoreUpdatedAt)}
+            Ultimo aggiornamento: {formatDateTimeLabel(state.lastScoreUpdatedAt)}
           </p>
         ) : null}
         {feedback ? <p className="text-emerald-700">{feedback}</p> : null}
