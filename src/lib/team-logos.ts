@@ -3,15 +3,21 @@ const TEAM_LOGOS_BUCKET = "team-logos";
 const TEAM_LOGO_FILES: Record<string, string> = {
   beerschot: "beerschot.png",
   birra_ravello: "birra_ravello.png",
+  birra_ravello_fuoco_di_amalfi: "birra_ravello.png",
   bubu_team_4: "bubu_team_4.png",
+  f_c_bubu_team_4_0: "bubu_team_4.png",
   della_valle_fight_club: "Della Valle Fight Club.jpg",
+  bardellavalle_fc: "Della Valle Fight Club.jpg",
   drink_team: "drink_team.png",
+  drinkteam: "drink_team.png",
   futsal_amalfi_2: "futsal_amalfi_2.png",
+  futsal_amalfi_2_0: "futsal_amalfi_2.png",
   futsal_fughezze: "futsal_fughezze.png",
   le_bluez: "le_bluez.png",
   leffe_team: "leffe_team.png",
   maiori_music_and_sun: "maiori_music_and_sun.png",
   vin_ca_percoc: "vin_ca_percoc.png",
+  f_c_vin_ca_percoc: "vin_ca_percoc.png",
 };
 
 function normalizeTeamName(name: string) {
