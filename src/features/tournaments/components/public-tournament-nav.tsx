@@ -25,8 +25,8 @@ export function PublicTournamentNav({ slug }: PublicTournamentNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="-mx-1 overflow-x-auto px-1 pb-1">
-      <div className="flex min-w-max gap-2">
+    <nav className="px-1 pb-1">
+      <div className="flex flex-wrap gap-2">
         {sections.map((section) => {
           const href = `/tournaments/${slug}${section.href}`;
           const isActive = pathname === href;

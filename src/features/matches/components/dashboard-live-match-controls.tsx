@@ -15,7 +15,10 @@ import type {
 } from "@/features/matches/types/match-player-events.types";
 import type { MatchSummary } from "@/features/matches/types/match.types";
 import type { PlayerSummary } from "@/features/players/types/player.types";
-import { formatDateTimeLabel } from "@/lib/format-date";
+import {
+  formatCompactDateTimeLabel,
+  formatLocalizedDateTimeLabel,
+} from "@/lib/format-date";
 
 type DashboardLiveMatchControlsProps = {
   match: MatchSummary;
@@ -142,6 +145,68 @@ function matchesPlayerSearch(player: PlayerSummary, query: string) {
   const jerseyNumber = player.jerseyNumber?.toLowerCase() ?? "";
 
   return label.includes(normalizedQuery) || jerseyNumber.includes(normalizedQuery);
+}
+
+function comparePlayersForSheet(left: PlayerSummary, right: PlayerSummary) {
+  const leftNumber = Number(left.jerseyNumber);
+  const rightNumber = Number(right.jerseyNumber);
+  const leftHasNumber = Number.isFinite(leftNumber);
+  const rightHasNumber = Number.isFinite(rightNumber);
+
+  if (leftHasNumber && rightHasNumber && leftNumber !== rightNumber) {
+    return leftNumber - rightNumber;
+  }
+
+  if (leftHasNumber !== rightHasNumber) {
+    return leftHasNumber ? -1 : 1;
+  }
+
+  return getPlayerLabel(left).localeCompare(getPlayerLabel(right), "it", {
+    sensitivity: "base",
+  });
+}
+
+function getTeamShortLabel(name: string) {
+  const parts = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+
+  if (parts.length >= 2) {
+    return parts
+      .slice(0, 3)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("");
+  }
+
+  return name.trim().slice(0, 3).toUpperCase() || "TEAM";
+}
+
+function getEventTypeLabel(type: MatchPlayerEventTypeValue) {
+  switch (type) {
+    case "GOAL":
+      return "Gol";
+    case "OWN_GOAL":
+      return "Autogol";
+    case "YELLOW_CARD":
+      return "Ammonizione";
+    case "RED_CARD":
+      return "Espulsione";
+    default:
+      return "Evento";
+  }
+}
+
+function getFeedbackTone(type: "success" | "error" | "pending") {
+  if (type === "success") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+
+  if (type === "error") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+
+  return "border-slate-200 bg-white text-slate-700";
 }
 
 async function readLatestMatchState(matchId: string): Promise<MatchControlState> {
@@ -297,15 +362,15 @@ function BottomSheet({
   children: ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45">
+    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45" role="dialog" aria-modal="true">
       <button
         type="button"
         aria-label="Chiudi"
         onClick={onClose}
         className="absolute inset-0"
       />
-      <div className="relative max-h-[88vh] w-full overflow-hidden rounded-t-[2rem] bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-4 pb-4 pt-3">
+      <div className="relative max-h-[88vh] w-full overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl">
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-4 pb-4 pt-3 sm:px-5">
           <div className="mx-auto h-1.5 w-14 rounded-full bg-slate-200" />
           <div className="mt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -321,7 +386,7 @@ function BottomSheet({
             </button>
           </div>
         </div>
-        <div className="overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4">
+        <div className="overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4 sm:px-5">
           {children}
         </div>
       </div>
@@ -345,9 +410,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
   const [pendingLabel, setPendingLabel] = useState<string | null>(null);
   const [sheetState, setSheetState] = useState<PlayerEventSheetState | null>(null);
   const [playerSearch, setPlayerSearch] = useState("");
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [correctionsOpen, setCorrectionsOpen] = useState(false);
-  const [lifecycleOpen, setLifecycleOpen] = useState(false);
+  const [secondaryOpen, setSecondaryOpen] = useState(false);
 
   const syncMatchState = (nextState: MatchControlState) => {
     setState(nextState);
@@ -378,6 +441,8 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
   const events = eventContext?.events ?? [];
   const homePlayers = useMemo(() => eventContext?.homePlayers ?? [], [eventContext?.homePlayers]);
   const awayPlayers = useMemo(() => eventContext?.awayPlayers ?? [], [eventContext?.awayPlayers]);
+  const homeTeamId = eventContext?.match.homeTeamId ?? match.homeTeamId;
+  const awayTeamId = eventContext?.match.awayTeamId ?? match.awayTeamId;
   const isBusy = pendingLabel !== null;
   const isLive = state.status === "LIVE";
   const isFinished = state.status === "FINISHED";
@@ -402,11 +467,12 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
       return [];
     }
 
-    const sourcePlayers =
-      selectedTeamId === eventContext?.match.homeTeamId ? homePlayers : awayPlayers;
+    const sourcePlayers = selectedTeamId === homeTeamId ? homePlayers : awayPlayers;
 
-    return sourcePlayers.filter((player) => matchesPlayerSearch(player, playerSearch));
-  }, [awayPlayers, eventContext?.match.homeTeamId, homePlayers, playerSearch, sheetState]);
+    return sourcePlayers
+      .filter((player) => matchesPlayerSearch(player, playerSearch))
+      .sort(comparePlayersForSheet);
+  }, [awayPlayers, homePlayers, homeTeamId, playerSearch, sheetState]);
 
   const runTask = async (
     label: string,
@@ -683,186 +749,233 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
       ? [...homePlayers, ...awayPlayers].find((player) => player.id === sheetState.selectedPlayerId) ?? null
       : null;
 
+  const goalAssignmentTeamName =
+    sheetState?.kind === "goal-assignment"
+      ? sheetState.teamId === homeTeamId
+        ? match.homeTeamName
+        : match.awayTeamName
+      : null;
+  const latestEventTeamLabel = latestEventSummary
+    ? getTeamShortLabel(latestEventSummary.teamName)
+    : null;
+
   return (
-    <section className="w-full max-w-full min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <section className="w-full max-w-full min-w-0 rounded-[1.75rem] border border-slate-200 bg-slate-50/95 p-3 shadow-sm sm:p-5">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-[0.18em] text-slate-500">
-            {match.roundLabel ?? "Partita"}
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            {(match.roundLabel ?? "Partita") +
+              (match.startsAt ? ` · ${formatCompactDateTimeLabel(match.startsAt)}` : "")}
           </p>
-          <p className="mt-1 text-sm text-slate-600">
-            {formatDateTimeLabel(match.startsAt)}
-            {match.locationLabel ? ` · ${match.locationLabel}` : ""}
-          </p>
+          {match.locationLabel ? (
+            <p className="mt-1 text-xs text-slate-500">{match.locationLabel}</p>
+          ) : null}
         </div>
         <MatchLiveIndicator status={state.status} />
       </div>
 
-      <div className="mt-4 rounded-[1.75rem] bg-white px-4 py-5 shadow-sm">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-3">
-          <div className="flex items-center gap-3">
-            <TeamMark name={match.homeTeamName} />
+      <div className="mt-3 rounded-[1.5rem] border border-slate-200 bg-white px-3 py-4 sm:px-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
+          <div className="grid justify-items-start gap-2 text-left">
+            <TeamMark name={match.homeTeamName} size="sm" />
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Casa</p>
-              <p className="truncate text-base font-semibold text-slate-950">{match.homeTeamName}</p>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {getTeamShortLabel(match.homeTeamName)}
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.homeTeamName}</p>
             </div>
           </div>
-          <div className="rounded-[1.35rem] bg-slate-950 px-4 py-3 text-center text-white">
-            <p className="text-3xl font-semibold tabular-nums sm:text-4xl">
-              {state.homeScore} - {state.awayScore}
+
+          <div className="rounded-[1.2rem] bg-slate-950 px-3 py-2.5 text-center text-white shadow-sm">
+            <p className="text-[2rem] font-semibold leading-none tabular-nums sm:text-[2.4rem]">
+              {state.homeScore}
+              <span className="px-2 text-white/65">-</span>
+              {state.awayScore}
             </p>
           </div>
-          <div className="flex items-center justify-end gap-3">
-            <div className="min-w-0 text-right">
-              <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
-              <p className="truncate text-base font-semibold text-slate-950">{match.awayTeamName}</p>
+
+          <div className="grid justify-items-end gap-2 text-right">
+            <TeamMark name={match.awayTeamName} size="sm" />
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {getTeamShortLabel(match.awayTeamName)}
+              </p>
+              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.awayTeamName}</p>
             </div>
-            <TeamMark name={match.awayTeamName} />
           </div>
         </div>
 
         {goalSummary.length > 0 ? (
-          <div className="mt-4 border-t border-slate-200 pt-4">
+          <div className="mt-4 border-t border-slate-200 pt-3">
             <MatchGoalSummary
               items={goalSummary}
               homeTeamId={match.homeTeamId}
               awayTeamId={match.awayTeamId}
+              compact
             />
           </div>
         ) : null}
+      </div>
 
-        {latestEventSummary ? (
-          <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            Ultimo evento: <span className="font-medium text-slate-950">{latestEventSummary.label}</span>
-            {latestEventSummary.matchMinute ? ` · ${latestEventSummary.matchMinute}'` : ""}
+      <div className="mt-3 grid gap-2" aria-live="polite">
+        {pendingLabel ? (
+          <div className={`rounded-[1.15rem] border px-3 py-2 text-sm ${getFeedbackTone("pending")}`}>
+            {pendingLabel}
+          </div>
+        ) : null}
+        {feedback ? (
+          <div className={`rounded-[1.15rem] border px-3 py-2 text-sm ${getFeedbackTone("success")}`}>
+            {feedback}
+          </div>
+        ) : null}
+        {error ? (
+          <div className={`rounded-[1.15rem] border px-3 py-2 text-sm ${getFeedbackTone("error")}`}>
+            {error}
           </div>
         ) : null}
       </div>
 
       {scoreReconciliation ? (
-        <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-          <p className="font-semibold">Controllo punteggio e marcatori</p>
-          <p className="mt-2">
-            Casa: punteggio {state.homeScore}, gol registrati {scoreReconciliation.homeRecordedGoals}
+        <div className="mt-3 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+          <p className="font-semibold">Controllo marcatori e punteggio</p>
+          <p className="mt-1 leading-5">
+            Casa {state.homeScore} / eventi gol {scoreReconciliation.homeRecordedGoals}
             {scoreReconciliation.homeUnassignedGoals > 0
-              ? `, ${scoreReconciliation.homeUnassignedGoals} marcatore/i da assegnare`
+              ? ` · ${scoreReconciliation.homeUnassignedGoals} da assegnare`
               : ""}
-            .
           </p>
-          <p className="mt-1">
-            Ospiti: punteggio {state.awayScore}, gol registrati {scoreReconciliation.awayRecordedGoals}
+          <p className="leading-5">
+            Trasferta {state.awayScore} / eventi gol {scoreReconciliation.awayRecordedGoals}
             {scoreReconciliation.awayUnassignedGoals > 0
-              ? `, ${scoreReconciliation.awayUnassignedGoals} marcatore/i da assegnare`
+              ? ` · ${scoreReconciliation.awayUnassignedGoals} da assegnare`
               : ""}
-            .
           </p>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            {scoreReconciliation.homeGoalDelta > 0 && isLive && match.homeTeamId ? (
+          <div className="mt-3 grid gap-2">
+            {scoreReconciliation.homeGoalDelta > 0 && isLive && homeTeamId ? (
               <button
                 type="button"
                 disabled={isBusy}
-                onClick={() => handleReconcileMissingGoals(match.homeTeamId)}
-                className="min-h-11 rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900 disabled:opacity-50"
+                onClick={() => handleReconcileMissingGoals(homeTeamId)}
+                className="min-h-11 rounded-[1rem] border border-amber-300 bg-white px-4 py-2 text-left text-sm font-medium text-amber-900 disabled:opacity-50"
               >
                 Registra {scoreReconciliation.homeGoalDelta} gol casa mancanti
               </button>
             ) : null}
-            {scoreReconciliation.awayGoalDelta > 0 && isLive && match.awayTeamId ? (
+            {scoreReconciliation.awayGoalDelta > 0 && isLive && awayTeamId ? (
               <button
                 type="button"
                 disabled={isBusy}
-                onClick={() => handleReconcileMissingGoals(match.awayTeamId)}
-                className="min-h-11 rounded-full border border-amber-300 bg-white px-4 py-2 text-sm font-medium text-amber-900 disabled:opacity-50"
+                onClick={() => handleReconcileMissingGoals(awayTeamId)}
+                className="min-h-11 rounded-[1rem] border border-amber-300 bg-white px-4 py-2 text-left text-sm font-medium text-amber-900 disabled:opacity-50"
               >
-                Registra {scoreReconciliation.awayGoalDelta} gol ospiti mancanti
+                Registra {scoreReconciliation.awayGoalDelta} gol trasferta mancanti
               </button>
             ) : null}
           </div>
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-4">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            disabled={!isLive || isBusy || !match.homeTeamId}
-            onClick={() => handleQuickGoal(match.homeTeamId)}
-            className="min-h-14 rounded-[1.5rem] bg-red-600 px-5 py-4 text-base font-semibold text-white disabled:opacity-50"
-          >
-            +1 Gol · {match.homeTeamName}
-          </button>
-          <button
-            type="button"
-            disabled={!isLive || isBusy || !match.awayTeamId}
-            onClick={() => handleQuickGoal(match.awayTeamId)}
-            className="min-h-14 rounded-[1.5rem] bg-red-600 px-5 py-4 text-base font-semibold text-white disabled:opacity-50"
-          >
-            +1 Gol · {match.awayTeamName}
-          </button>
-        </div>
-
-          <button
-            type="button"
-            disabled={!isLive || isBusy}
-            onClick={handleOpenPlayerEventSheet}
-            className="min-h-12 rounded-full border border-slate-300 bg-white px-5 py-3 text-sm font-medium text-slate-900 disabled:opacity-50"
-          >
-            Evento giocatore
-        </button>
-      </div>
-
-      <details
-        open={correctionsOpen}
-        onToggle={(event) => setCorrectionsOpen((event.currentTarget as HTMLDetailsElement).open)}
-        className="mt-4 overflow-hidden rounded-[1.5rem] bg-white shadow-sm"
-      >
-        <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold text-slate-900">
-          Correzioni punteggio
-        </summary>
-        <div className="border-t border-slate-200 px-4 py-4">
-          <div className="grid gap-3 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_auto]">
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Correzione casa
-              <input
-                type="number"
-                min="0"
-                value={homeInput}
-                onChange={(event) => setHomeInput(event.target.value)}
-                className="min-h-12 rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900"
-              />
-            </label>
-            <label className="grid gap-2 text-sm font-medium text-slate-700">
-              Correzione ospite
-              <input
-                type="number"
-                min="0"
-                value={awayInput}
-                onChange={(event) => setAwayInput(event.target.value)}
-                className="min-h-12 rounded-2xl border border-slate-300 px-4 py-3 text-base text-slate-900"
-              />
-            </label>
-            <button
-              type="button"
-              disabled={!isLive || isBusy}
-              onClick={handleSetScore}
-              className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white disabled:opacity-50"
-            >
-              Imposta punteggio
-            </button>
+      <div className="mt-3 grid gap-2.5">
+        <div className="rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Casa</p>
+              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.homeTeamName}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                disabled={!isLive || isBusy}
+                onClick={() => void sendAction("decrement_home")}
+                className="min-h-11 min-w-[3.25rem] rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                aria-label={`Togli un gol a ${match.homeTeamName}`}
+              >
+                -1
+              </button>
+              <button
+                type="button"
+                disabled={!isLive || isBusy || !homeTeamId}
+                onClick={() => handleQuickGoal(homeTeamId)}
+                className="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+                aria-label={`Aggiungi un gol a ${match.homeTeamName}`}
+              >
+                + GOL
+              </button>
+            </div>
           </div>
         </div>
-      </details>
+
+        <div className="rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
+              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.awayTeamName}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                disabled={!isLive || isBusy}
+                onClick={() => void sendAction("decrement_away")}
+                className="min-h-11 min-w-[3.25rem] rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-50"
+                aria-label={`Togli un gol a ${match.awayTeamName}`}
+              >
+                -1
+              </button>
+              <button
+                type="button"
+                disabled={!isLive || isBusy || !awayTeamId}
+                onClick={() => handleQuickGoal(awayTeamId)}
+                className="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+                aria-label={`Aggiungi un gol a ${match.awayTeamName}`}
+              >
+                + GOL
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {latestEventSummary ? (
+        <div className="mt-3 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Ultimo evento</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-slate-950">
+            {getEventTypeLabel(latestEventSummary.type)} · {latestEventSummary.label}
+            {latestEventTeamLabel ? ` · ${latestEventTeamLabel}` : ""}
+            {typeof latestEventSummary.matchMinute === "number"
+              ? ` · ${latestEventSummary.matchMinute}'`
+              : ""}
+          </p>
+          <button
+            type="button"
+            disabled={isBusy}
+            onClick={() => void sendAction("undo")}
+            className="mt-3 min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+          >
+            Annulla ultimo evento
+          </button>
+        </div>
+      ) : null}
+
+      {state.status === "SCHEDULED" ? (
+        <button
+          type="button"
+          disabled={isBusy}
+          onClick={() => void sendAction("start")}
+          className="mt-3 min-h-12 w-full rounded-[1.3rem] bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+        >
+          Avvia partita
+        </button>
+      ) : null}
 
       <details
-        open={historyOpen}
+        open={secondaryOpen}
         onToggle={(event) => {
           const isOpen = (event.currentTarget as HTMLDetailsElement).open;
-          setHistoryOpen(isOpen);
+          setSecondaryOpen(isOpen);
 
           if (isOpen && !eventContext) {
             void runTask(
-              "Caricamento cronologia...",
+              "Caricamento azioni aggiuntive...",
               async () => {
                 await ensureEventContextLoaded();
               },
@@ -870,167 +983,236 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
             );
           }
         }}
-        className="mt-4 overflow-hidden rounded-[1.5rem] bg-white shadow-sm"
+        className="mt-3 overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white"
       >
-        <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold text-slate-900">
-          Cronologia eventi
+        <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-slate-900">
+          Altre azioni
         </summary>
-        <div className="border-t border-slate-200 px-4 py-4">
-          {events.length === 0 ? (
-            <p className="text-sm text-slate-600">Nessun evento giocatore registrato al momento.</p>
-          ) : (
-            <div className="grid gap-3">
-              {events.map((event) => (
-                <article
-                  key={event.id}
-                  className={`rounded-[1.35rem] border px-4 py-3 ${
-                    event.voidedAt
-                      ? "border-slate-200 bg-slate-50 text-slate-500"
-                      : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-950">{event.label}</p>
-                      <p className="mt-1 text-sm text-slate-600">{event.teamName}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        Ordine #{event.sequence}
-                        {typeof event.matchMinute === "number" ? ` · ${event.matchMinute}'` : ""}
-                        {event.voidedAt ? " · evento annullato" : ""}
-                      </p>
-                    </div>
-                    {!event.voidedAt ? (
-                      <div className="flex shrink-0 flex-col gap-2">
-                        {event.type === "GOAL" || event.type === "OWN_GOAL" ? (
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() => openGoalAssignmentSheet(event.id, event.teamId)}
-                            className="min-h-10 rounded-full border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50"
-                          >
-                            {event.playerId ? "Modifica" : "Assegna marcatore"}
-                          </button>
-                        ) : (
-                          <button
-                            type="button"
-                            disabled={isBusy}
-                            onClick={() =>
-                              openPlayerEventSheet(event.teamId, event.id, event.playerId, event.type)
-                            }
-                            className="min-h-10 rounded-full border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50"
-                          >
-                            Modifica
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          disabled={isBusy}
-                          onClick={() => handleVoidEvent(event)}
-                          className="min-h-10 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700 disabled:opacity-50"
-                        >
-                          Annulla evento
-                        </button>
-                      </div>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </div>
-      </details>
 
-      <details
-        open={lifecycleOpen}
-        onToggle={(event) => setLifecycleOpen((event.currentTarget as HTMLDetailsElement).open)}
-        className="mt-4 overflow-hidden rounded-[1.5rem] bg-white shadow-sm"
-      >
-        <summary className="cursor-pointer list-none px-4 py-4 text-sm font-semibold text-slate-900">
-          Stato partita
-        </summary>
-        <div className="border-t border-slate-200 px-4 py-4">
-          <div className="flex flex-wrap gap-3">
-            <button
-              type="button"
-              disabled={state.status !== "SCHEDULED" || isBusy}
-              onClick={() => void sendAction("start")}
-              className="min-h-12 rounded-full bg-emerald-600 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
-            >
-              Start Match
-            </button>
+        <div className="grid gap-5 border-t border-slate-200 px-4 py-4">
+          <div className="grid gap-2">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Evento giocatore</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Registra gol, autogol, ammonizioni o espulsioni con selezione giocatore.
+              </p>
+            </div>
             <button
               type="button"
               disabled={!isLive || isBusy}
-              onClick={handleFinish}
-              className="min-h-12 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              onClick={handleOpenPlayerEventSheet}
+              className="min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
             >
-              Finish Match
+              Apri selettore eventi
             </button>
+          </div>
+
+          <div className="grid gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Correzione manuale</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Usa questa sezione solo per riallineare il punteggio ufficiale.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Casa
+                <input
+                  type="number"
+                  min="0"
+                  value={homeInput}
+                  onChange={(event) => setHomeInput(event.target.value)}
+                  className="min-h-11 rounded-[1rem] border border-slate-300 px-3 py-2 text-base text-slate-900"
+                />
+              </label>
+              <label className="grid gap-1.5 text-sm font-medium text-slate-700">
+                Trasferta
+                <input
+                  type="number"
+                  min="0"
+                  value={awayInput}
+                  onChange={(event) => setAwayInput(event.target.value)}
+                  className="min-h-11 rounded-[1rem] border border-slate-300 px-3 py-2 text-base text-slate-900"
+                />
+              </label>
+            </div>
             <button
               type="button"
               disabled={!isLive || isBusy}
-              onClick={() => void sendAction("return_to_scheduled")}
-              className="min-h-12 rounded-full border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
+              onClick={handleSetScore}
+              className="min-h-11 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
             >
-              Return to Scheduled
+              Applica correzione
             </button>
-            <button
-              type="button"
-              disabled={isBusy}
-              onClick={() => void sendAction("postpone")}
-              className="min-h-12 rounded-full border border-amber-300 px-5 py-3 text-sm font-medium text-amber-800 disabled:opacity-50"
-            >
-              Postpone
-            </button>
-            <button
-              type="button"
-              disabled={isBusy}
-              onClick={() => void sendAction("cancel")}
-              className="min-h-12 rounded-full border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              disabled={!isFinished || isBusy}
-              onClick={handleReopen}
-              className="min-h-12 rounded-full border border-red-300 px-5 py-3 text-sm font-medium text-red-700 disabled:opacity-50"
-            >
-              Reopen Match
-            </button>
-            <button
-              type="button"
-              disabled={isBusy}
-              onClick={() => void sendAction("undo")}
-              className="min-h-12 rounded-full border border-slate-300 px-5 py-3 text-sm font-medium text-slate-700 disabled:opacity-50"
-            >
-              Undo Last Change
-            </button>
+          </div>
+
+          <div className="grid gap-2">
+            <div>
+              <p className="text-sm font-semibold text-slate-950">Stato partita</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Azioni amministrative e cambi di stato non usati durante il live scoring principale.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2">
+              <button
+                type="button"
+                disabled={!isLive || isBusy}
+                onClick={() => void sendAction("return_to_scheduled")}
+                className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+              >
+                Riporta a programmata
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void sendAction("postpone")}
+                className="min-h-11 rounded-full border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 disabled:opacity-50"
+              >
+                Rinvia partita
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void sendAction("cancel")}
+                className="min-h-11 rounded-full border border-red-200 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
+              >
+                Annulla partita
+              </button>
+              <button
+                type="button"
+                disabled={!isFinished || isBusy}
+                onClick={handleReopen}
+                className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+              >
+                Riapri partita
+              </button>
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void sendAction("undo")}
+                className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+              >
+                Annulla ultima modifica
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">Cronologia eventi</p>
+                <p className="mt-1 text-sm text-slate-600">
+                  Modifica o annulla gli eventi senza farli dominare il pannello live.
+                </p>
+              </div>
+              <span className="shrink-0 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                {events.length} eventi
+              </span>
+            </div>
+
+            {events.length === 0 ? (
+              <p className="rounded-[1rem] bg-slate-50 px-3 py-3 text-sm text-slate-600">
+                Nessun evento giocatore registrato al momento.
+              </p>
+            ) : (
+              <div className="grid gap-2">
+                {events.map((event) => (
+                  <article
+                    key={event.id}
+                    className={`rounded-[1.1rem] border px-3 py-3 ${
+                      event.voidedAt
+                        ? "border-slate-200 bg-slate-50 text-slate-500"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold leading-5 text-slate-950">{event.label}</p>
+                        <p className="mt-1 text-sm text-slate-600">{event.teamName}</p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          #{event.sequence}
+                          {typeof event.matchMinute === "number" ? ` · ${event.matchMinute}'` : ""}
+                          {event.voidedAt ? " · annullato" : ""}
+                        </p>
+                      </div>
+                      {!event.voidedAt ? (
+                        <div className="flex shrink-0 flex-col gap-2">
+                          {event.type === "GOAL" || event.type === "OWN_GOAL" ? (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() => openGoalAssignmentSheet(event.id, event.teamId)}
+                              className="min-h-10 rounded-full border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50"
+                            >
+                              {event.playerId ? "Modifica marcatore" : "Assegna marcatore"}
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              disabled={isBusy}
+                              onClick={() =>
+                                openPlayerEventSheet(event.teamId, event.id, event.playerId, event.type)
+                              }
+                              className="min-h-10 rounded-full border border-slate-300 px-3 py-2 text-xs font-medium text-slate-700 disabled:opacity-50"
+                            >
+                              Modifica evento
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            disabled={isBusy}
+                            onClick={() => handleVoidEvent(event)}
+                            className="min-h-10 rounded-full border border-red-200 px-3 py-2 text-xs font-medium text-red-700 disabled:opacity-50"
+                          >
+                            Annulla evento
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </details>
 
-      <div className="mt-4 flex flex-col gap-2 text-sm">
-        {state.lastScoreUpdatedAt ? (
-          <p className="text-slate-500">
-            Ultimo aggiornamento: {formatDateTimeLabel(state.lastScoreUpdatedAt)}
-          </p>
-        ) : null}
-        {pendingLabel ? <p className="text-slate-700">{pendingLabel}</p> : null}
-        {feedback ? <p className="text-emerald-700">{feedback}</p> : null}
-        {error ? <p className="text-red-700">{error}</p> : null}
-      </div>
+      {isLive ? (
+        <button
+          type="button"
+          disabled={isBusy}
+          onClick={handleFinish}
+          className="mt-3 min-h-12 w-full rounded-[1.3rem] border border-slate-950 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+        >
+          Termina partita
+        </button>
+      ) : null}
+
+      {state.lastScoreUpdatedAt ? (
+        <p className="mt-3 text-xs text-slate-500">
+          Ultimo aggiornamento: {formatLocalizedDateTimeLabel(state.lastScoreUpdatedAt)}
+        </p>
+      ) : null}
 
       {sheetState?.kind === "goal-assignment" ? (
         <BottomSheet
-          title="Seleziona il marcatore"
-          subtitle="Il punteggio è già stato aggiornato. Se chiudi il foglio, il gol resta come marcatore da assegnare."
+          title="Chi ha segnato?"
+          subtitle="Il punteggio è già stato aggiornato. Se chiudi il foglio, il gol resta da assegnare."
           onClose={() => {
             setSheetState(null);
             setFeedback("Gol lasciato come marcatore da assegnare.");
           }}
         >
           <div className="grid gap-3">
+            {goalAssignmentTeamName ? (
+              <div className="rounded-[1.15rem] bg-slate-50 px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Squadra selezionata
+                </p>
+                <p className="mt-1 text-base font-semibold text-slate-950">{goalAssignmentTeamName}</p>
+              </div>
+            ) : null}
+
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Cerca giocatore
               <input
@@ -1052,20 +1234,28 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               Marcatore da assegnare
             </button>
 
-            <div className="grid gap-2">
-              {selectedTeamPlayers.map((player) => (
-                <button
-                  key={player.id}
-                  type="button"
-                  disabled={isBusy}
-                  onClick={() => handleAssignScorer(player.id)}
-                  className="min-h-12 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 shadow-sm disabled:opacity-50"
-                >
-                  <span className="font-medium">{getPlayerLabel(player)}</span>
-                  {player.jerseyNumber ? ` · #${player.jerseyNumber}` : ""}
-                </button>
-              ))}
-            </div>
+            {selectedTeamPlayers.length === 0 ? (
+              <p className="rounded-[1.15rem] border border-dashed border-slate-300 px-4 py-4 text-sm text-slate-600">
+                Nessun giocatore trovato per questa squadra.
+              </p>
+            ) : (
+              <div className="grid gap-2">
+                {selectedTeamPlayers.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    disabled={isBusy}
+                    onClick={() => handleAssignScorer(player.id)}
+                    className="min-h-12 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 shadow-sm disabled:opacity-50"
+                  >
+                    <span className="font-medium">
+                      {player.jerseyNumber ? `[${player.jerseyNumber}] ` : ""}
+                      {getPlayerLabel(player)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </BottomSheet>
       ) : null}
@@ -1073,7 +1263,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
       {sheetState?.kind === "player-event" ? (
         <BottomSheet
           title="Evento giocatore"
-          subtitle="Seleziona squadra, giocatore ed evento. I gol aggiornano anche il punteggio ufficiale."
+          subtitle="Seleziona squadra, giocatore ed evento. Gol e autogol aggiornano anche il punteggio ufficiale."
           onClose={() => setSheetState(null)}
         >
           <div className="grid gap-4">
@@ -1085,14 +1275,14 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                     current?.kind === "player-event"
                       ? {
                           ...current,
-                          selectedTeamId: eventContext?.match.homeTeamId ?? match.homeTeamId,
+                          selectedTeamId: homeTeamId,
                           selectedPlayerId: null,
                         }
                       : current,
                   )
                 }
                 className={`min-h-12 rounded-full px-4 py-3 text-sm font-medium ${
-                  sheetState.selectedTeamId === (eventContext?.match.homeTeamId ?? match.homeTeamId)
+                  sheetState.selectedTeamId === homeTeamId
                     ? "bg-slate-950 text-white"
                     : "border border-slate-300 bg-white text-slate-700"
                 }`}
@@ -1106,20 +1296,29 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                     current?.kind === "player-event"
                       ? {
                           ...current,
-                          selectedTeamId: eventContext?.match.awayTeamId ?? match.awayTeamId,
+                          selectedTeamId: awayTeamId,
                           selectedPlayerId: null,
                         }
                       : current,
                   )
                 }
                 className={`min-h-12 rounded-full px-4 py-3 text-sm font-medium ${
-                  sheetState.selectedTeamId === (eventContext?.match.awayTeamId ?? match.awayTeamId)
+                  sheetState.selectedTeamId === awayTeamId
                     ? "bg-slate-950 text-white"
                     : "border border-slate-300 bg-white text-slate-700"
                 }`}
               >
                 {match.awayTeamName}
               </button>
+            </div>
+
+            <div className="rounded-[1.15rem] bg-slate-50 px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Squadra selezionata
+              </p>
+              <p className="mt-1 text-base font-semibold text-slate-950">
+                {sheetState.selectedTeamId === homeTeamId ? match.homeTeamName : match.awayTeamName}
+              </p>
             </div>
 
             <label className="grid gap-2 text-sm font-medium text-slate-700">
@@ -1134,51 +1333,50 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               />
             </label>
 
-            <div className="grid gap-2">
-              {selectedTeamPlayers.map((player) => (
-                <button
-                  key={player.id}
-                  type="button"
-                  onClick={() =>
-                    setSheetState((current) =>
-                      current?.kind === "player-event"
-                        ? {
-                            ...current,
-                            selectedPlayerId: player.id,
-                          }
-                        : current,
-                    )
-                  }
-                  className={`min-h-12 rounded-[1.25rem] border px-4 py-3 text-left text-sm shadow-sm ${
-                    sheetState.selectedPlayerId === player.id
-                      ? "border-slate-950 bg-slate-950 text-white"
-                      : "border-slate-200 bg-white text-slate-900"
-                  }`}
-                >
-                  <span className="font-medium">{getPlayerLabel(player)}</span>
-                  {player.jerseyNumber ? ` · #${player.jerseyNumber}` : ""}
-                </button>
-              ))}
-            </div>
+            {selectedTeamPlayers.length === 0 ? (
+              <p className="rounded-[1.15rem] border border-dashed border-slate-300 px-4 py-4 text-sm text-slate-600">
+                Nessun giocatore trovato per questa squadra.
+              </p>
+            ) : (
+              <div className="grid gap-2">
+                {selectedTeamPlayers.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    onClick={() =>
+                      setSheetState((current) =>
+                        current?.kind === "player-event"
+                          ? {
+                              ...current,
+                              selectedPlayerId: player.id,
+                            }
+                          : current,
+                      )
+                    }
+                    className={`min-h-12 rounded-[1.25rem] border px-4 py-3 text-left text-sm shadow-sm ${
+                      sheetState.selectedPlayerId === player.id
+                        ? "border-slate-950 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-900"
+                    }`}
+                  >
+                    <span className="font-medium">
+                      {player.jerseyNumber ? `[${player.jerseyNumber}] ` : ""}
+                      {getPlayerLabel(player)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {selectedPlayer ? (
               <div className="rounded-[1.35rem] bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-950">
+                  {selectedPlayer.jerseyNumber ? `[${selectedPlayer.jerseyNumber}] ` : ""}
                   {getPlayerLabel(selectedPlayer)}
-                  {selectedPlayer.jerseyNumber ? ` · #${selectedPlayer.jerseyNumber}` : ""}
                 </p>
 
                 <div className="mt-3 grid grid-cols-2 gap-2">
                   {(["GOAL", "OWN_GOAL", "YELLOW_CARD", "RED_CARD"] as MatchPlayerEventTypeValue[]).map((type) => {
-                    const label =
-                      type === "GOAL"
-                        ? "Gol"
-                        : type === "OWN_GOAL"
-                          ? "Autogol"
-                          : type === "YELLOW_CARD"
-                            ? "Ammonizione"
-                            : "Espulsione";
-
                     return (
                       <button
                         key={type}
@@ -1199,7 +1397,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                             : "border border-slate-300 bg-white text-slate-700"
                         }`}
                       >
-                        {label}
+                        {getEventTypeLabel(type)}
                       </button>
                     );
                   })}

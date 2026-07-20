@@ -12,6 +12,26 @@ const dateTimeFormatter = new Intl.DateTimeFormat("it-IT", {
   timeZone: "UTC",
 });
 
+const localizedDateTimeFormatter = new Intl.DateTimeFormat("it-IT", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  hour12: false,
+  timeZone: "UTC",
+});
+
+const compactDateFormatter = new Intl.DateTimeFormat("it-IT", {
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+const compactTimeFormatter = new Intl.DateTimeFormat("it-IT", {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "UTC",
+});
+
 function getValidDate(date: Date | string | null | undefined) {
   return parseOptionalDate(date);
 }
@@ -24,6 +44,21 @@ export function formatDateLabel(date: Date | string | null | undefined) {
 export function formatDateTimeLabel(date: Date | string | null | undefined) {
   const validDate = getValidDate(date);
   return validDate ? `${dateTimeFormatter.format(validDate)} UTC` : "Data da definire";
+}
+
+export function formatLocalizedDateTimeLabel(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+  return validDate ? localizedDateTimeFormatter.format(validDate) : "Data da definire";
+}
+
+export function formatCompactDateTimeLabel(date: Date | string | null | undefined) {
+  const validDate = getValidDate(date);
+
+  if (!validDate) {
+    return "Data da definire";
+  }
+
+  return `${compactDateFormatter.format(validDate)} · ${compactTimeFormatter.format(validDate)}`;
 }
 
 export function formatDateRangeLabel(

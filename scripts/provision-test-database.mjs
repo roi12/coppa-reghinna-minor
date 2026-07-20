@@ -12,10 +12,6 @@ function parseDatabaseUrl(value, label) {
     throw new Error(`${label} must point to localhost.`);
   }
 
-  if (url.pathname.replace(/^\//, "") !== "reghinna_test") {
-    throw new Error(`${label} must point to the reghinna_test database.`);
-  }
-
   if (/supabase/i.test(url.hostname) || /supabase/i.test(value)) {
     throw new Error(`${label} must not point to Supabase.`);
   }

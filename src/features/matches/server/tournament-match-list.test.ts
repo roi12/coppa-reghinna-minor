@@ -144,6 +144,6 @@ test("match list renders live and finished matches after repeated refresh cycles
     }),
   );
 
-  assert.match(liveMarkup, /Live Now/);
-  assert.match(finishedMarkup, /FULL TIME|Risultato finale/);
+  assert.match(liveMarkup, /LIVE|Aggiornamento live/);
+  assert.match(finishedMarkup, /FINALE|Risultato finale/);
 });
