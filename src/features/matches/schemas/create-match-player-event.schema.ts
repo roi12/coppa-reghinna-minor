@@ -1,11 +1,13 @@
 import { z } from "zod";
 
+import { entityIdSchema } from "@/lib/schemas/entity-id";
+
 export const createMatchPlayerEventSchema = z
   .object({
     type: z.enum(["GOAL", "OWN_GOAL", "YELLOW_CARD", "RED_CARD"]),
-    teamId: z.string().cuid(),
-    awardedTeamId: z.string().cuid().nullable().optional(),
-    playerId: z.string().cuid().nullable().optional(),
+    teamId: entityIdSchema,
+    awardedTeamId: entityIdSchema.nullable().optional(),
+    playerId: entityIdSchema.nullable().optional(),
     expectedScoreVersion: z.coerce.number().int().min(0).optional(),
     matchMinute: z.coerce.number().int().min(0).max(200).nullable().optional(),
   })
@@ -28,7 +30,7 @@ export const createMatchPlayerEventSchema = z
   });
 
 export const reconcileMissingGoalsSchema = z.object({
-  teamId: z.string().cuid(),
+  teamId: entityIdSchema,
 });
 
 export type CreateMatchPlayerEventInput = z.infer<typeof createMatchPlayerEventSchema>;

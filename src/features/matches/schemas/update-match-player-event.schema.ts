@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+import { entityIdSchema } from "@/lib/schemas/entity-id";
+
 export const updateMatchPlayerEventSchema = z.object({
-  playerId: z.string().cuid().nullable().optional(),
+  playerId: entityIdSchema.nullable().optional(),
   type: z.enum(["GOAL", "OWN_GOAL", "YELLOW_CARD", "RED_CARD"]).optional(),
   matchMinute: z.coerce.number().int().min(0).max(200).nullable().optional(),
 });
