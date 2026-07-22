@@ -40,6 +40,33 @@ async function openResultsMatchCard(page: Page) {
   return matchCard;
 }
 
+async function openPlayerEventSheet(page: Page) {
+  const matchCard = await openResultsMatchCard(page);
+
+  const contextResponsePromise = page.waitForResponse((response) => {
+    return (
+      response.request().method() === "GET" &&
+      /\/api\/dashboard\/matches\/[^/]+\/events$/.test(response.url())
+    );
+  });
+
+  await matchCard.getByRole("button", { name: "+ Evento giocatore" }).click();
+  const eventContextResponse = await contextResponsePromise;
+  const eventContext = (await eventContextResponse.json()) as {
+    match: { homeTeamId: string };
+    homePlayers: Array<{ id: string; displayName: string | null; firstName: string; lastName: string }>;
+  };
+
+  const sheet = page.getByRole("dialog", { name: "Evento giocatore" });
+  await expect(sheet).toBeVisible();
+
+  return {
+    eventContext,
+    matchCard,
+    sheet,
+  };
+}
+
 test("public calendar team links jump to the roster card and browser back returns to the calendar", async ({
   page,
 }) => {
@@ -72,22 +99,7 @@ test("public calendar team links jump to the roster card and browser back return
 test("mobile yellow-card flow keeps selections after an API error and closes only after a successful submit", async ({
   page,
 }) => {
-  const matchCard = await openResultsMatchCard(page);
-
-  const contextResponsePromise = page.waitForResponse((response) => {
-    return (
-      response.request().method() === "GET" &&
-      /\/api\/dashboard\/matches\/[^/]+\/events$/.test(response.url())
-    );
-  });
-
-  await matchCard.getByRole("button", { name: "+ Evento giocatore" }).click();
-
-  const eventContextResponse = await contextResponsePromise;
-  const eventContext = (await eventContextResponse.json()) as {
-    match: { homeTeamId: string };
-    homePlayers: Array<{ id: string; displayName: string | null; firstName: string; lastName: string }>;
-  };
+  const { eventContext, matchCard, sheet } = await openPlayerEventSheet(page);
 
   const selectedHomePlayer = eventContext.homePlayers.find((player) => {
     const label = player.displayName ?? `${player.firstName} ${player.lastName}`;
@@ -96,8 +108,6 @@ test("mobile yellow-card flow keeps selections after an API error and closes onl
 
   assert(selectedHomePlayer);
 
-  const sheet = page.getByRole("dialog", { name: "Evento giocatore" });
-  await expect(sheet).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Dockside United" })).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Ammonizione" })).toBeVisible();
   await expect(sheet.getByText("Simone Villa")).not.toBeVisible();
@@ -107,6 +117,7 @@ test("mobile yellow-card flow keeps selections after an API error and closes onl
 
   const confirmButton = sheet.getByRole("button", { name: "Conferma cartellino giallo" });
   await expect(confirmButton).toBeVisible();
+  await expect(confirmButton).toBeEnabled();
   const confirmBox = await confirmButton.boundingBox();
   assert(confirmBox);
   expect(confirmBox.y + confirmBox.height).toBeLessThanOrEqual(844);
@@ -166,4 +177,78 @@ test("mobile yellow-card flow keeps selections after an API error and closes onl
   expect(yellowCardRequestCount).toBe(2);
   await expect(sheet).toBeHidden();
   await expect(matchCard.getByText("Evento giocatore registrato.")).toBeVisible();
+});
+
+test("mobile quick-goal scorer assignment stays team-scoped and closes after choosing a scorer", async ({
+  page,
+}) => {
+  const matchCard = await openResultsMatchCard(page);
+
+  const scorerSheetResponsePromise = page.waitForResponse((response) => {
+    return (
+      response.request().method() === "GET" &&
+      /\/api\/dashboard\/matches\/[^/]+\/events$/.test(response.url())
+    );
+  });
+
+  await matchCard.getByRole("button", { name: "Aggiungi un gol a Dockside United" }).click();
+
+  const scorerContextResponse = await scorerSheetResponsePromise;
+  const scorerContext = (await scorerContextResponse.json()) as {
+    homePlayers: Array<{ id: string; displayName: string | null; firstName: string; lastName: string }>;
+  };
+
+  const selectedHomePlayer = scorerContext.homePlayers.find((player) => {
+    const label = player.displayName ?? `${player.firstName} ${player.lastName}`;
+    return label === "Enzo Marini";
+  });
+
+  assert(selectedHomePlayer);
+
+  const sheet = page.getByRole("dialog", { name: "Chi ha segnato?" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText("Dockside United")).toBeVisible();
+  await expect(sheet.getByText("Simone Villa")).not.toBeVisible();
+
+  const scorerButton = sheet.getByRole("button", { name: /\[10\] Enzo Marini|Enzo Marini/ });
+  await expect(scorerButton).toBeVisible();
+  await scorerButton.click();
+
+  await expect(sheet).toBeHidden();
+  await expect(matchCard.getByText("Marcatore aggiornato.")).toBeVisible();
+});
+
+test("latest player-event edit reopens the mobile sheet with the selected player and explicit update action", async ({
+  page,
+}) => {
+  const matchCard = await openResultsMatchCard(page);
+
+  const latestEventSection = matchCard
+    .getByText("Ultimo evento")
+    .locator("xpath=ancestor::div[1]");
+
+  await expect(latestEventSection).toBeVisible();
+
+  const contextResponsePromise = page.waitForResponse((response) => {
+    return (
+      response.request().method() === "GET" &&
+      /\/api\/dashboard\/matches\/[^/]+\/events$/.test(response.url())
+    );
+  });
+
+  await latestEventSection.getByRole("button", { name: "Modifica" }).click();
+  await contextResponsePromise;
+
+  const sheet = page.getByRole("dialog", { name: "Evento giocatore" });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText("Giocatore selezionato")).toBeVisible();
+  await expect(sheet.getByText("Enzo Marini")).toBeVisible();
+
+  const updateButton = sheet.getByRole("button", { name: "Aggiorna cartellino giallo" });
+  await expect(updateButton).toBeVisible();
+  await expect(updateButton).toBeEnabled();
+
+  const updateBox = await updateButton.boundingBox();
+  assert(updateBox);
+  expect(updateBox.y + updateBox.height).toBeLessThanOrEqual(844);
 });

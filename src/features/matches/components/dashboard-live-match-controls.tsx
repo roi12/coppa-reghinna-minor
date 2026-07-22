@@ -504,6 +504,8 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
   const homeTeamId = eventContext?.match.homeTeamId ?? match.homeTeamId;
   const awayTeamId = eventContext?.match.awayTeamId ?? match.awayTeamId;
   const isBusy = pendingLabel !== null;
+  const isAssigningScorer = pendingLabel === "Assegnazione marcatore...";
+  const isSubmittingPlayerEvent = pendingLabel === "Salvataggio evento...";
   const isLive = state.status === "LIVE";
   const isFinished = state.status === "FINISHED";
 
@@ -841,7 +843,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
       playerEventSheetState.selectedPlayerId &&
       playerEventSheetState.selectedType,
   );
-  const playerEventActionLabel = isBusy
+  const playerEventActionLabel = isSubmittingPlayerEvent
     ? "Invio in corso…"
     : getPlayerEventActionLabel(
         playerEventSheetState?.selectedType ?? null,
@@ -1328,7 +1330,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         <BottomSheet
           title="Chi ha segnato?"
           subtitle="Il punteggio è già stato aggiornato. Se chiudi il foglio, il gol resta da assegnare."
-          canDismiss={!isBusy}
+          canDismiss={!isAssigningScorer}
           onClose={() => {
             closeSheet();
             setFeedback("Gol lasciato come marcatore da assegnare.");
@@ -1357,7 +1359,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
 
             <button
               type="button"
-              disabled={isBusy}
+              disabled={isAssigningScorer}
               onClick={() => handleAssignScorer(null)}
               className="min-h-12 rounded-[1.25rem] border border-slate-300 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-900 disabled:opacity-50"
             >
@@ -1374,7 +1376,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                   <button
                     key={player.id}
                     type="button"
-                    disabled={isBusy}
+                    disabled={isAssigningScorer}
                     onClick={() => handleAssignScorer(player.id)}
                     className="min-h-12 rounded-[1.25rem] border border-slate-200 bg-white px-4 py-3 text-left text-sm text-slate-900 shadow-sm disabled:opacity-50"
                   >
@@ -1400,7 +1402,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         <BottomSheet
           title="Evento giocatore"
           subtitle="Seleziona squadra, giocatore ed evento. Gol e autogol aggiornano anche il punteggio ufficiale."
-          canDismiss={!isBusy}
+          canDismiss={!isSubmittingPlayerEvent}
           onClose={closeSheet}
           footer={
             <div className="grid gap-3">
@@ -1411,9 +1413,9 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               ) : null}
               <button
                 type="button"
-                disabled={!canSubmitPlayerEvent || isBusy}
+                disabled={!canSubmitPlayerEvent || isSubmittingPlayerEvent}
                 onClick={handleCreateOrUpdatePlayerEvent}
-                className="min-h-12 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+                className="min-h-12 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:bg-slate-200 disabled:text-slate-500 disabled:shadow-none"
               >
                 {playerEventActionLabel}
               </button>
@@ -1424,7 +1426,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                disabled={isBusy}
+                disabled={isSubmittingPlayerEvent}
                 onClick={() =>
                   setSheetState((current) =>
                     current?.kind === "player-event"
@@ -1446,7 +1448,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               </button>
               <button
                 type="button"
-                disabled={isBusy}
+                disabled={isSubmittingPlayerEvent}
                 onClick={() =>
                   setSheetState((current) =>
                     current?.kind === "player-event"
@@ -1473,7 +1475,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                 <button
                   key={type}
                   type="button"
-                  disabled={isBusy}
+                  disabled={isSubmittingPlayerEvent}
                   onClick={() =>
                     setSheetState((current) =>
                       current?.kind === "player-event"
@@ -1540,7 +1542,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                   <button
                     key={player.id}
                     type="button"
-                    disabled={isBusy}
+                    disabled={isSubmittingPlayerEvent}
                     onClick={() =>
                       setSheetState((current) =>
                         current?.kind === "player-event"
