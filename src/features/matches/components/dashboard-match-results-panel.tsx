@@ -17,7 +17,7 @@ export function DashboardMatchResultsPanel({
   }
 
   return (
-    <div className="mt-5 grid w-full max-w-full min-w-0 gap-4">
+    <div className="mt-4 grid w-full max-w-full min-w-0 gap-3">
       {matches.map((match) => (
         <DashboardLiveMatchControls key={match.id} match={match} />
       ))}

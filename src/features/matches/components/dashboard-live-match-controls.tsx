@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 
 import { TeamMark } from "@/components/ui/team-mark";
@@ -197,6 +197,25 @@ function getEventTypeLabel(type: MatchPlayerEventTypeValue) {
   }
 }
 
+function getPlayerEventActionLabel(type: MatchPlayerEventTypeValue | null, isEditing: boolean) {
+  if (!type) {
+    return "Seleziona evento e giocatore";
+  }
+
+  switch (type) {
+    case "GOAL":
+      return isEditing ? "Aggiorna gol" : "Conferma gol";
+    case "OWN_GOAL":
+      return isEditing ? "Aggiorna autogol" : "Conferma autogol";
+    case "YELLOW_CARD":
+      return isEditing ? "Aggiorna cartellino giallo" : "Conferma cartellino giallo";
+    case "RED_CARD":
+      return isEditing ? "Aggiorna cartellino rosso" : "Conferma cartellino rosso";
+    default:
+      return isEditing ? "Aggiorna evento" : "Conferma evento";
+  }
+}
+
 function getFeedbackTone(type: "success" | "error" | "pending") {
   if (type === "success") {
     return "border-emerald-200 bg-emerald-50 text-emerald-800";
@@ -354,41 +373,82 @@ function BottomSheet({
   title,
   subtitle,
   onClose,
+  canDismiss = true,
+  footer,
   children,
 }: {
   title: string;
   subtitle?: string;
   onClose: () => void;
+  canDismiss?: boolean;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
+  const titleId = useId();
+
+  useEffect(() => {
+    const { body } = document;
+    const previousOverflow = body.style.overflow;
+    const previousOverscrollBehavior = body.style.overscrollBehavior;
+
+    body.style.overflow = "hidden";
+    body.style.overscrollBehavior = "contain";
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && canDismiss) {
+        event.preventDefault();
+        onClose();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      body.style.overflow = previousOverflow;
+      body.style.overscrollBehavior = previousOverscrollBehavior;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [canDismiss, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-slate-950/45" role="dialog" aria-modal="true">
+    <div
+      className="fixed inset-0 z-[80] flex items-end justify-center bg-slate-950/45 sm:p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+    >
       <button
         type="button"
         aria-label="Chiudi"
-        onClick={onClose}
-        className="absolute inset-0"
+        onClick={canDismiss ? onClose : undefined}
+        className={`absolute inset-0 ${canDismiss ? "" : "pointer-events-none"}`}
       />
-      <div className="relative max-h-[88vh] w-full overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl">
+      <div className="relative flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-[1.75rem]">
         <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-4 pb-4 pt-3 sm:px-5">
           <div className="mx-auto h-1.5 w-14 rounded-full bg-slate-200" />
           <div className="mt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+              <h3 id={titleId} className="text-lg font-semibold text-slate-950">{title}</h3>
               {subtitle ? <p className="mt-1 text-sm text-slate-600">{subtitle}</p> : null}
             </div>
             <button
               type="button"
+              disabled={!canDismiss}
               onClick={onClose}
-              className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
+              className="min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
             >
               Chiudi
             </button>
           </div>
         </div>
-        <div className="overflow-y-auto px-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)] pt-4 sm:px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 sm:px-5">
           {children}
         </div>
+        {footer ? (
+          <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-5">
+            {footer}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -455,6 +515,16 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
     return refreshEventContext();
   };
 
+  const closeSheet = () => {
+    if (isBusy) {
+      return;
+    }
+
+    setSheetState(null);
+    setPlayerSearch("");
+    setError(null);
+  };
+
   const selectedTeamPlayers = useMemo(() => {
     if (!sheetState) {
       return [];
@@ -467,12 +537,17 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
       return [];
     }
 
-    const sourcePlayers = selectedTeamId === homeTeamId ? homePlayers : awayPlayers;
+    const sourcePlayers =
+      selectedTeamId === homeTeamId
+        ? homePlayers
+        : selectedTeamId === awayTeamId
+          ? awayPlayers
+          : [];
 
     return sourcePlayers
       .filter((player) => matchesPlayerSearch(player, playerSearch))
       .sort(comparePlayersForSheet);
-  }, [awayPlayers, homePlayers, homeTeamId, playerSearch, sheetState]);
+  }, [awayPlayers, awayTeamId, homePlayers, homeTeamId, playerSearch, sheetState]);
 
   const runTask = async (
     label: string,
@@ -748,6 +823,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
     sheetState?.kind === "player-event" && sheetState.selectedPlayerId
       ? [...homePlayers, ...awayPlayers].find((player) => player.id === sheetState.selectedPlayerId) ?? null
       : null;
+  const latestActiveEvent = events.findLast((event) => !event.voidedAt) ?? null;
 
   const goalAssignmentTeamName =
     sheetState?.kind === "goal-assignment"
@@ -758,10 +834,41 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
   const latestEventTeamLabel = latestEventSummary
     ? getTeamShortLabel(latestEventSummary.teamName)
     : null;
+  const playerEventSheetState =
+    sheetState?.kind === "player-event" ? sheetState : null;
+  const canSubmitPlayerEvent = Boolean(
+    playerEventSheetState?.selectedTeamId &&
+      playerEventSheetState.selectedPlayerId &&
+      playerEventSheetState.selectedType,
+  );
+  const playerEventActionLabel = isBusy
+    ? "Invio in corso…"
+    : getPlayerEventActionLabel(
+        playerEventSheetState?.selectedType ?? null,
+        Boolean(playerEventSheetState?.editingEventId),
+      );
+
+  const handleEditLatestEvent = () => {
+    if (!latestActiveEvent) {
+      return;
+    }
+
+    if (latestActiveEvent.type === "GOAL" || latestActiveEvent.type === "OWN_GOAL") {
+      openGoalAssignmentSheet(latestActiveEvent.id, latestActiveEvent.teamId);
+      return;
+    }
+
+    openPlayerEventSheet(
+      latestActiveEvent.teamId,
+      latestActiveEvent.id,
+      latestActiveEvent.playerId,
+      latestActiveEvent.type,
+    );
+  };
 
   return (
-    <section className="w-full max-w-full min-w-0 rounded-[1.75rem] border border-slate-200 bg-slate-50/95 p-3 shadow-sm sm:p-5">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+    <section className="w-full max-w-full min-w-0 rounded-[1.6rem] border border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 shadow-sm sm:px-5 sm:pb-5 sm:pt-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
             {(match.roundLabel ?? "Partita") +
@@ -774,34 +881,38 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         <MatchLiveIndicator status={state.status} />
       </div>
 
-      <div className="mt-3 rounded-[1.5rem] border border-slate-200 bg-white px-3 py-4 sm:px-4">
-        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
-          <div className="grid justify-items-start gap-2 text-left">
-            <TeamMark name={match.homeTeamName} size="sm" />
-            <div className="min-w-0">
+      <div className="mt-4 border-t border-slate-200 pt-4">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-start gap-3">
+          <div className="min-w-0 text-left">
+            <div className="flex items-center gap-2">
+              <TeamMark name={match.homeTeamName} size="sm" />
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 {getTeamShortLabel(match.homeTeamName)}
               </p>
-              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.homeTeamName}</p>
             </div>
+            <p className="mt-2 text-sm font-semibold leading-5 text-slate-950 sm:text-base">
+              {match.homeTeamName}
+            </p>
           </div>
 
-          <div className="rounded-[1.2rem] bg-slate-950 px-3 py-2.5 text-center text-white shadow-sm">
-            <p className="text-[2rem] font-semibold leading-none tabular-nums sm:text-[2.4rem]">
+          <div className="rounded-[1.1rem] bg-slate-950 px-3 py-2 text-center text-white shadow-sm">
+            <p className="text-[2rem] font-semibold leading-none tabular-nums sm:text-[2.35rem]">
               {state.homeScore}
-              <span className="px-2 text-white/65">-</span>
+              <span className="px-2 text-white/65">—</span>
               {state.awayScore}
             </p>
           </div>
 
-          <div className="grid justify-items-end gap-2 text-right">
-            <TeamMark name={match.awayTeamName} size="sm" />
-            <div className="min-w-0">
+          <div className="min-w-0 text-right">
+            <div className="flex items-center justify-end gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 {getTeamShortLabel(match.awayTeamName)}
               </p>
-              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.awayTeamName}</p>
+              <TeamMark name={match.awayTeamName} size="sm" />
             </div>
+            <p className="mt-2 text-sm font-semibold leading-5 text-slate-950 sm:text-base">
+              {match.awayTeamName}
+            </p>
           </div>
         </div>
 
@@ -817,26 +928,132 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         ) : null}
       </div>
 
-      <div className="mt-3 grid gap-2" aria-live="polite">
+      <div className="mt-4 grid gap-2.5">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-[1.2rem] border border-slate-200 bg-slate-50 px-3 py-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Casa</p>
+            <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.homeTeamName}</p>
+          </div>
+          <button
+            type="button"
+            disabled={!isLive || isBusy}
+            onClick={() => void sendAction("decrement_home")}
+            className="min-h-11 min-w-[3.2rem] rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-50"
+            aria-label={`Togli un gol a ${match.homeTeamName}`}
+          >
+            -1
+          </button>
+          <button
+            type="button"
+            disabled={!isLive || isBusy || !homeTeamId}
+            onClick={() => handleQuickGoal(homeTeamId)}
+            className="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+            aria-label={`Aggiungi un gol a ${match.homeTeamName}`}
+          >
+            + GOL
+          </button>
+        </div>
+
+        <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 rounded-[1.2rem] border border-slate-200 bg-slate-50 px-3 py-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
+            <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.awayTeamName}</p>
+          </div>
+          <button
+            type="button"
+            disabled={!isLive || isBusy}
+            onClick={() => void sendAction("decrement_away")}
+            className="min-h-11 min-w-[3.2rem] rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-50"
+            aria-label={`Togli un gol a ${match.awayTeamName}`}
+          >
+            -1
+          </button>
+          <button
+            type="button"
+            disabled={!isLive || isBusy || !awayTeamId}
+            onClick={() => handleQuickGoal(awayTeamId)}
+            className="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+            aria-label={`Aggiungi un gol a ${match.awayTeamName}`}
+          >
+            + GOL
+          </button>
+        </div>
+
+        <button
+          type="button"
+          disabled={!isLive || isBusy}
+          onClick={handleOpenPlayerEventSheet}
+          className="min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
+        >
+          + Evento giocatore
+        </button>
+      </div>
+
+      {latestEventSummary ? (
+        <div className="mt-4 border-t border-slate-200 pt-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Ultimo evento</p>
+          <p className="mt-1 text-sm font-medium leading-5 text-slate-950">
+            {getEventTypeLabel(latestEventSummary.type)} · {latestEventSummary.label}
+            {latestEventTeamLabel ? ` · ${latestEventTeamLabel}` : ""}
+            {typeof latestEventSummary.matchMinute === "number"
+              ? ` · ${latestEventSummary.matchMinute}'`
+              : ""}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {latestActiveEvent ? (
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={handleEditLatestEvent}
+                className="min-h-10 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+              >
+                Modifica
+              </button>
+            ) : null}
+            {latestActiveEvent ? (
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => handleVoidEvent(latestActiveEvent)}
+                className="min-h-10 rounded-full border border-red-200 px-4 py-2 text-sm font-medium text-red-700 disabled:opacity-50"
+              >
+                Annulla
+              </button>
+            ) : null}
+            {!latestActiveEvent ? (
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={() => void sendAction("undo")}
+                className="min-h-10 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
+              >
+                Annulla ultima modifica
+              </button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="mt-4 grid gap-2" aria-live="polite">
         {pendingLabel ? (
-          <div className={`rounded-[1.15rem] border px-3 py-2 text-sm ${getFeedbackTone("pending")}`}>
+          <div className={`rounded-[1rem] border px-3 py-2 text-sm ${getFeedbackTone("pending")}`}>
             {pendingLabel}
           </div>
         ) : null}
         {feedback ? (
-          <div className={`rounded-[1.15rem] border px-3 py-2 text-sm ${getFeedbackTone("success")}`}>
+          <div className={`rounded-[1rem] border px-3 py-2 text-sm ${getFeedbackTone("success")}`}>
             {feedback}
           </div>
         ) : null}
-        {error ? (
-          <div className={`rounded-[1.15rem] border px-3 py-2 text-sm ${getFeedbackTone("error")}`}>
+        {error && !sheetState ? (
+          <div className={`rounded-[1rem] border px-3 py-2 text-sm ${getFeedbackTone("error")}`}>
             {error}
           </div>
         ) : null}
       </div>
 
       {scoreReconciliation ? (
-        <div className="mt-3 rounded-[1.25rem] border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
+        <div className="mt-4 rounded-[1.2rem] border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-900">
           <p className="font-semibold">Controllo marcatori e punteggio</p>
           <p className="mt-1 leading-5">
             Casa {state.homeScore} / eventi gol {scoreReconciliation.homeRecordedGoals}
@@ -875,93 +1092,12 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         </div>
       ) : null}
 
-      <div className="mt-3 grid gap-2.5">
-        <div className="rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Casa</p>
-              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.homeTeamName}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                disabled={!isLive || isBusy}
-                onClick={() => void sendAction("decrement_home")}
-                className="min-h-11 min-w-[3.25rem] rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                aria-label={`Togli un gol a ${match.homeTeamName}`}
-              >
-                -1
-              </button>
-              <button
-                type="button"
-                disabled={!isLive || isBusy || !homeTeamId}
-                onClick={() => handleQuickGoal(homeTeamId)}
-                className="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
-                aria-label={`Aggiungi un gol a ${match.homeTeamName}`}
-              >
-                + GOL
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Trasferta</p>
-              <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">{match.awayTeamName}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <button
-                type="button"
-                disabled={!isLive || isBusy}
-                onClick={() => void sendAction("decrement_away")}
-                className="min-h-11 min-w-[3.25rem] rounded-full border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:opacity-50"
-                aria-label={`Togli un gol a ${match.awayTeamName}`}
-              >
-                -1
-              </button>
-              <button
-                type="button"
-                disabled={!isLive || isBusy || !awayTeamId}
-                onClick={() => handleQuickGoal(awayTeamId)}
-                className="min-h-11 rounded-full bg-red-600 px-4 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
-                aria-label={`Aggiungi un gol a ${match.awayTeamName}`}
-              >
-                + GOL
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {latestEventSummary ? (
-        <div className="mt-3 rounded-[1.35rem] border border-slate-200 bg-white px-3 py-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Ultimo evento</p>
-          <p className="mt-1 text-sm font-medium leading-5 text-slate-950">
-            {getEventTypeLabel(latestEventSummary.type)} · {latestEventSummary.label}
-            {latestEventTeamLabel ? ` · ${latestEventTeamLabel}` : ""}
-            {typeof latestEventSummary.matchMinute === "number"
-              ? ` · ${latestEventSummary.matchMinute}'`
-              : ""}
-          </p>
-          <button
-            type="button"
-            disabled={isBusy}
-            onClick={() => void sendAction("undo")}
-            className="mt-3 min-h-11 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 disabled:opacity-50"
-          >
-            Annulla ultimo evento
-          </button>
-        </div>
-      ) : null}
-
       {state.status === "SCHEDULED" ? (
         <button
           type="button"
           disabled={isBusy}
           onClick={() => void sendAction("start")}
-          className="mt-3 min-h-12 w-full rounded-[1.3rem] bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+          className="mt-4 min-h-12 w-full rounded-[1.2rem] bg-emerald-600 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
         >
           Avvia partita
         </button>
@@ -983,30 +1119,13 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
             );
           }
         }}
-        className="mt-3 overflow-hidden rounded-[1.35rem] border border-slate-200 bg-white"
+        className="mt-4 overflow-hidden rounded-[1.2rem] border border-slate-200 bg-slate-50"
       >
         <summary className="cursor-pointer list-none px-4 py-3.5 text-sm font-semibold text-slate-900">
           Altre azioni
         </summary>
 
         <div className="grid gap-5 border-t border-slate-200 px-4 py-4">
-          <div className="grid gap-2">
-            <div>
-              <p className="text-sm font-semibold text-slate-950">Evento giocatore</p>
-              <p className="mt-1 text-sm text-slate-600">
-                Registra gol, autogol, ammonizioni o espulsioni con selezione giocatore.
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={!isLive || isBusy}
-              onClick={handleOpenPlayerEventSheet}
-              className="min-h-11 rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
-            >
-              Apri selettore eventi
-            </button>
-          </div>
-
           <div className="grid gap-3">
             <div>
               <p className="text-sm font-semibold text-slate-950">Correzione manuale</p>
@@ -1014,22 +1133,33 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                 Usa questa sezione solo per riallineare il punteggio ufficiale.
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            {scoreReconciliation &&
+            (scoreReconciliation.homeGoalDelta !== 0 ||
+              scoreReconciliation.awayGoalDelta !== 0 ||
+              scoreReconciliation.homeUnassignedGoals > 0 ||
+              scoreReconciliation.awayUnassignedGoals > 0) ? (
+              <p className="rounded-[1rem] border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                Attenzione: il punteggio ufficiale e gli eventi gol non coincidono ancora.
+              </p>
+            ) : null}
+            <div className="grid gap-3">
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                Casa
+                {match.homeTeamName}
                 <input
                   type="number"
                   min="0"
+                  inputMode="numeric"
                   value={homeInput}
                   onChange={(event) => setHomeInput(event.target.value)}
                   className="min-h-11 rounded-[1rem] border border-slate-300 px-3 py-2 text-base text-slate-900"
                 />
               </label>
               <label className="grid gap-1.5 text-sm font-medium text-slate-700">
-                Trasferta
+                {match.awayTeamName}
                 <input
                   type="number"
                   min="0"
+                  inputMode="numeric"
                   value={awayInput}
                   onChange={(event) => setAwayInput(event.target.value)}
                   className="min-h-11 rounded-[1rem] border border-slate-300 px-3 py-2 text-base text-slate-900"
@@ -1102,7 +1232,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
               <div>
                 <p className="text-sm font-semibold text-slate-950">Cronologia eventi</p>
                 <p className="mt-1 text-sm text-slate-600">
-                  Modifica o annulla gli eventi senza farli dominare il pannello live.
+                  Modifica o annulla gli eventi senza riempire il pannello principale.
                 </p>
               </div>
               <span className="shrink-0 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
@@ -1111,7 +1241,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
             </div>
 
             {events.length === 0 ? (
-              <p className="rounded-[1rem] bg-slate-50 px-3 py-3 text-sm text-slate-600">
+              <p className="rounded-[1rem] bg-white px-3 py-3 text-sm text-slate-600">
                 Nessun evento giocatore registrato al momento.
               </p>
             ) : (
@@ -1119,9 +1249,9 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                 {events.map((event) => (
                   <article
                     key={event.id}
-                    className={`rounded-[1.1rem] border px-3 py-3 ${
+                    className={`rounded-[1rem] border px-3 py-3 ${
                       event.voidedAt
-                        ? "border-slate-200 bg-slate-50 text-slate-500"
+                        ? "border-slate-200 bg-slate-100 text-slate-500"
                         : "border-slate-200 bg-white"
                     }`}
                   >
@@ -1182,7 +1312,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           type="button"
           disabled={isBusy}
           onClick={handleFinish}
-          className="mt-3 min-h-12 w-full rounded-[1.3rem] border border-slate-950 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
+          className="mt-4 min-h-12 w-full rounded-[1.2rem] border border-slate-950 bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm disabled:opacity-50"
         >
           Termina partita
         </button>
@@ -1198,12 +1328,13 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         <BottomSheet
           title="Chi ha segnato?"
           subtitle="Il punteggio è già stato aggiornato. Se chiudi il foglio, il gol resta da assegnare."
+          canDismiss={!isBusy}
           onClose={() => {
-            setSheetState(null);
+            closeSheet();
             setFeedback("Gol lasciato come marcatore da assegnare.");
           }}
         >
-          <div className="grid gap-3">
+          <div className="grid gap-3 pb-4">
             {goalAssignmentTeamName ? (
               <div className="rounded-[1.15rem] bg-slate-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -1216,7 +1347,6 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Cerca giocatore
               <input
-                autoFocus
                 type="search"
                 value={playerSearch}
                 onChange={(event) => setPlayerSearch(event.target.value)}
@@ -1256,6 +1386,12 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                 ))}
               </div>
             )}
+
+            {error ? (
+              <p className={`rounded-[1rem] border px-3 py-2 text-sm ${getFeedbackTone("error")}`}>
+                {error}
+              </p>
+            ) : null}
           </div>
         </BottomSheet>
       ) : null}
@@ -1264,12 +1400,45 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
         <BottomSheet
           title="Evento giocatore"
           subtitle="Seleziona squadra, giocatore ed evento. Gol e autogol aggiornano anche il punteggio ufficiale."
-          onClose={() => setSheetState(null)}
+          canDismiss={!isBusy}
+          onClose={closeSheet}
+          footer={
+            <div className="grid gap-3">
+              {selectedPlayer ? (
+                <div className="rounded-[1rem] bg-slate-50 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                    Giocatore selezionato
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-950">
+                    {selectedPlayer.jerseyNumber ? `[${selectedPlayer.jerseyNumber}] ` : ""}
+                    {getPlayerLabel(selectedPlayer)}
+                    {playerEventSheetState?.selectedType
+                      ? ` · ${getEventTypeLabel(playerEventSheetState.selectedType)}`
+                      : ""}
+                  </p>
+                </div>
+              ) : null}
+              {error ? (
+                <p className={`rounded-[1rem] border px-3 py-2 text-sm ${getFeedbackTone("error")}`}>
+                  {error}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                disabled={!canSubmitPlayerEvent || isBusy}
+                onClick={handleCreateOrUpdatePlayerEvent}
+                className="min-h-12 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {playerEventActionLabel}
+              </button>
+            </div>
+          }
         >
-          <div className="grid gap-4">
+          <div className="grid gap-4 pb-4">
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() =>
                   setSheetState((current) =>
                     current?.kind === "player-event"
@@ -1285,12 +1454,13 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                   sheetState.selectedTeamId === homeTeamId
                     ? "bg-slate-950 text-white"
                     : "border border-slate-300 bg-white text-slate-700"
-                }`}
+                } disabled:opacity-50`}
               >
                 {match.homeTeamName}
               </button>
               <button
                 type="button"
+                disabled={isBusy}
                 onClick={() =>
                   setSheetState((current) =>
                     current?.kind === "player-event"
@@ -1306,10 +1476,37 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                   sheetState.selectedTeamId === awayTeamId
                     ? "bg-slate-950 text-white"
                     : "border border-slate-300 bg-white text-slate-700"
-                }`}
+                } disabled:opacity-50`}
               >
                 {match.awayTeamName}
               </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {(["GOAL", "OWN_GOAL", "YELLOW_CARD", "RED_CARD"] as MatchPlayerEventTypeValue[]).map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  disabled={isBusy}
+                  onClick={() =>
+                    setSheetState((current) =>
+                      current?.kind === "player-event"
+                        ? {
+                            ...current,
+                            selectedType: type,
+                          }
+                        : current,
+                    )
+                  }
+                  className={`min-h-12 rounded-[1.15rem] px-4 py-3 text-sm font-medium ${
+                    sheetState.selectedType === type
+                      ? "bg-slate-950 text-white"
+                      : "border border-slate-300 bg-white text-slate-700"
+                  } disabled:opacity-50`}
+                >
+                  {getEventTypeLabel(type)}
+                </button>
+              ))}
             </div>
 
             <div className="rounded-[1.15rem] bg-slate-50 px-4 py-3">
@@ -1324,7 +1521,6 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Cerca giocatore
               <input
-                autoFocus
                 type="search"
                 value={playerSearch}
                 onChange={(event) => setPlayerSearch(event.target.value)}
@@ -1343,6 +1539,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                   <button
                     key={player.id}
                     type="button"
+                    disabled={isBusy}
                     onClick={() =>
                       setSheetState((current) =>
                         current?.kind === "player-event"
@@ -1357,7 +1554,7 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                       sheetState.selectedPlayerId === player.id
                         ? "border-slate-950 bg-slate-950 text-white"
                         : "border-slate-200 bg-white text-slate-900"
-                    }`}
+                    } disabled:opacity-50`}
                   >
                     <span className="font-medium">
                       {player.jerseyNumber ? `[${player.jerseyNumber}] ` : ""}
@@ -1367,52 +1564,6 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                 ))}
               </div>
             )}
-
-            {selectedPlayer ? (
-              <div className="rounded-[1.35rem] bg-slate-50 p-4">
-                <p className="text-sm font-semibold text-slate-950">
-                  {selectedPlayer.jerseyNumber ? `[${selectedPlayer.jerseyNumber}] ` : ""}
-                  {getPlayerLabel(selectedPlayer)}
-                </p>
-
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {(["GOAL", "OWN_GOAL", "YELLOW_CARD", "RED_CARD"] as MatchPlayerEventTypeValue[]).map((type) => {
-                    return (
-                      <button
-                        key={type}
-                        type="button"
-                        onClick={() =>
-                          setSheetState((current) =>
-                            current?.kind === "player-event"
-                              ? {
-                                  ...current,
-                                  selectedType: type,
-                                }
-                              : current,
-                          )
-                        }
-                        className={`min-h-12 rounded-[1.15rem] px-4 py-3 text-sm font-medium ${
-                          sheetState.selectedType === type
-                            ? "bg-slate-950 text-white"
-                            : "border border-slate-300 bg-white text-slate-700"
-                        }`}
-                      >
-                        {getEventTypeLabel(type)}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isBusy}
-                  onClick={handleCreateOrUpdatePlayerEvent}
-                  className="mt-4 min-h-12 w-full rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  {sheetState.editingEventId ? "Aggiorna evento" : "Conferma evento"}
-                </button>
-              </div>
-            ) : null}
           </div>
         </BottomSheet>
       ) : null}

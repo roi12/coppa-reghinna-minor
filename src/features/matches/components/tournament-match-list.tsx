@@ -1,9 +1,10 @@
 import Link from "next/link";
 
-import { MatchGoalSummary } from "@/features/matches/components/match-goal-summary";
 import { TeamMark } from "@/components/ui/team-mark";
+import { MatchGoalSummary } from "@/features/matches/components/match-goal-summary";
 import { MatchLiveIndicator } from "@/features/matches/components/match-live-indicator";
 import type { MatchSummary } from "@/features/matches/types/match.types";
+import { buildPublicTournamentTeamHref } from "@/features/teams/utils/public-team-links";
 import {
   formatCompactDateTimeLabel,
   formatLocalizedDateTimeLabel,
@@ -29,6 +30,51 @@ function getTeamShortLabel(name: string) {
   }
 
   return name.trim().slice(0, 3).toUpperCase() || "TEAM";
+}
+
+function MatchTeamIdentity({
+  name,
+  teamId,
+  tournamentSlug,
+  align,
+}: {
+  name: string;
+  teamId: string | null;
+  tournamentSlug?: string;
+  align: "left" | "right";
+}) {
+  const content = (
+    <>
+      <TeamMark name={name} size="sm" />
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+          {getTeamShortLabel(name)}
+        </p>
+        <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">
+          {name}
+        </p>
+      </div>
+    </>
+  );
+
+  const className =
+    align === "left"
+      ? "grid justify-items-start gap-2 text-left"
+      : "grid justify-items-end gap-2 text-right";
+
+  if (!teamId || !tournamentSlug) {
+    return <div className={className}>{content}</div>;
+  }
+
+  return (
+    <Link
+      href={buildPublicTournamentTeamHref(tournamentSlug, teamId)}
+      aria-label={`Apri la squadra ${name}`}
+      className={`${className} rounded-[1rem] outline-none transition-colors hover:text-slate-950 focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2`}
+    >
+      {content}
+    </Link>
+  );
 }
 
 export function TournamentMatchList({
@@ -76,17 +122,12 @@ export function TournamentMatchList({
 
           <div className="mt-3 rounded-[1.35rem] border border-white/80 bg-white/90 px-3 py-4">
             <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2.5">
-              <div className="grid justify-items-start gap-2">
-                <TeamMark name={match.homeTeamName} size="sm" />
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {getTeamShortLabel(match.homeTeamName)}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">
-                    {match.homeTeamName}
-                  </p>
-                </div>
-              </div>
+              <MatchTeamIdentity
+                name={match.homeTeamName}
+                teamId={match.homeTeamId}
+                tournamentSlug={tournamentSlug}
+                align="left"
+              />
 
               <div
                 className={`rounded-[1.15rem] px-3 py-2.5 text-center ${
@@ -104,17 +145,12 @@ export function TournamentMatchList({
                 </p>
               </div>
 
-              <div className="grid justify-items-end gap-2 text-right">
-                <TeamMark name={match.awayTeamName} size="sm" />
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    {getTeamShortLabel(match.awayTeamName)}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-slate-950">
-                    {match.awayTeamName}
-                  </p>
-                </div>
-              </div>
+              <MatchTeamIdentity
+                name={match.awayTeamName}
+                teamId={match.awayTeamId}
+                tournamentSlug={tournamentSlug}
+                align="right"
+              />
             </div>
 
             {match.goalSummary.length > 0 ? (

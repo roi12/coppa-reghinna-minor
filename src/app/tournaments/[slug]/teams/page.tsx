@@ -21,10 +21,16 @@ export async function generateMetadata({
 
 export default async function TournamentTeamsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ team?: string | string[] }>;
 }) {
   const { slug } = await params;
+  const resolvedSearchParams = await searchParams;
+  const highlightedTeamId = Array.isArray(resolvedSearchParams.team)
+    ? resolvedSearchParams.team[0] ?? null
+    : resolvedSearchParams.team ?? null;
 
-  return <PublicTournamentTeamsPage slug={slug} />;
+  return <PublicTournamentTeamsPage slug={slug} highlightedTeamId={highlightedTeamId} />;
 }

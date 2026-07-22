@@ -777,19 +777,23 @@ export async function DashboardTournamentPage({
           </article>
         </div>
 
-        <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-6 shadow-sm">
-          <div className="flex items-center justify-between gap-3">
+        <article className="min-w-0 rounded-3xl border border-slate-300 bg-white p-5 shadow-sm sm:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h3 className="text-xl font-semibold tracking-tight">5. Gestione risultati</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-xl font-semibold tracking-tight">5. Gestione risultati</h3>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                  {matches.length} partite
+                </span>
+              </div>
               <p className="mt-2 text-sm text-slate-600">
-                Aggiorna stato e punteggi delle partite solo dopo la generazione del calendario.
+                Aggiorna risultati, marcatori ed eventi.
               </p>
             </div>
-            <span className="text-sm text-slate-500">{matches.length} partite</span>
           </div>
 
           {!setupState.results.isActive ? (
-            <div className="mt-5 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+            <div className="mt-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
               {setupState.results.message}
             </div>
           ) : null}

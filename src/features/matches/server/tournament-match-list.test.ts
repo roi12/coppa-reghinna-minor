@@ -147,3 +147,45 @@ test("match list renders live and finished matches after repeated refresh cycles
   assert.match(liveMarkup, /LIVE|Aggiornamento live/);
   assert.match(finishedMarkup, /FINALE|Risultato finale/);
 });
+
+test("public calendar links resolved teams to their roster cards", () => {
+  const markup = renderToStaticMarkup(
+    createElement(TournamentMatchList, {
+      matches: [buildMatch()],
+      emptyMessage: "Nessuna partita.",
+      tournamentSlug: "coppa-reghinna-minor-2026",
+    }),
+  );
+
+  assert.match(
+    markup,
+    /href="\/tournaments\/coppa-reghinna-minor-2026\/teams\?team=team-1#team-team-1"/,
+  );
+  assert.match(
+    markup,
+    /href="\/tournaments\/coppa-reghinna-minor-2026\/teams\?team=team-2#team-team-2"/,
+  );
+  assert.match(markup, /Apri la squadra Northport Rovers/);
+});
+
+test("unresolved teams remain plain text in the public calendar", () => {
+  const markup = renderToStaticMarkup(
+    createElement(TournamentMatchList, {
+      matches: [
+        buildMatch({
+          homeTeamId: null,
+          homeTeamName: "Vincente quarto di finale 1",
+        }),
+      ],
+      emptyMessage: "Nessuna partita.",
+      tournamentSlug: "coppa-reghinna-minor-2026",
+    }),
+  );
+
+  assert.doesNotMatch(markup, /href="[^"]*team=null/);
+  assert.doesNotMatch(markup, /Apri la squadra Vincente quarto di finale 1/);
+  assert.match(
+    markup,
+    /href="\/tournaments\/coppa-reghinna-minor-2026\/teams\?team=team-2#team-team-2"/,
+  );
+});
