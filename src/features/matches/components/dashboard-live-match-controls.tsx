@@ -424,7 +424,7 @@ function BottomSheet({
         className={`absolute inset-0 ${canDismiss ? "" : "pointer-events-none"}`}
       />
       <div className="relative flex max-h-[90dvh] w-full max-w-2xl flex-col overflow-hidden rounded-t-[1.75rem] bg-white shadow-2xl sm:max-h-[min(90dvh,52rem)] sm:rounded-[1.75rem]">
-        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white px-4 pb-4 pt-3 sm:px-5">
+        <div className="sticky top-0 z-10 shrink-0 border-b border-slate-200 bg-white px-4 pb-4 pt-3 sm:px-5">
           <div className="mx-auto h-1.5 w-14 rounded-full bg-slate-200" />
           <div className="mt-4 flex items-start justify-between gap-3">
             <div className="min-w-0">
@@ -441,11 +441,11 @@ function BottomSheet({
             </button>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 sm:px-5">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-5 pt-4 sm:px-5">
           {children}
         </div>
         {footer ? (
-          <div className="sticky bottom-0 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-5">
+          <div className="sticky bottom-0 shrink-0 border-t border-slate-200 bg-white px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3 sm:px-5">
             {footer}
           </div>
         ) : null}
@@ -1404,20 +1404,6 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
           onClose={closeSheet}
           footer={
             <div className="grid gap-3">
-              {selectedPlayer ? (
-                <div className="rounded-[1rem] bg-slate-50 px-4 py-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Giocatore selezionato
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-950">
-                    {selectedPlayer.jerseyNumber ? `[${selectedPlayer.jerseyNumber}] ` : ""}
-                    {getPlayerLabel(selectedPlayer)}
-                    {playerEventSheetState?.selectedType
-                      ? ` · ${getEventTypeLabel(playerEventSheetState.selectedType)}`
-                      : ""}
-                  </p>
-                </div>
-              ) : null}
               {error ? (
                 <p className={`rounded-[1rem] border px-3 py-2 text-sm ${getFeedbackTone("error")}`}>
                   {error}
@@ -1517,6 +1503,21 @@ export function DashboardLiveMatchControls({ match }: DashboardLiveMatchControls
                 {sheetState.selectedTeamId === homeTeamId ? match.homeTeamName : match.awayTeamName}
               </p>
             </div>
+
+            {selectedPlayer ? (
+              <div className="rounded-[1rem] border border-slate-200 bg-white px-4 py-3">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  Giocatore selezionato
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-950">
+                  {selectedPlayer.jerseyNumber ? `[${selectedPlayer.jerseyNumber}] ` : ""}
+                  {getPlayerLabel(selectedPlayer)}
+                  {playerEventSheetState?.selectedType
+                    ? ` · ${getEventTypeLabel(playerEventSheetState.selectedType)}`
+                    : ""}
+                </p>
+              </div>
+            ) : null}
 
             <label className="grid gap-2 text-sm font-medium text-slate-700">
               Cerca giocatore
