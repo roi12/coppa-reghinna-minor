@@ -13,9 +13,11 @@ const TEAM_LOGO_FILES: Record<string, string> = {
   futsal_amalfi_2: "futsal_amalfi_2.png",
   futsal_amalfi_2_0: "futsal_amalfi_2.png",
   futsal_fughezze: "futsal_fughezze.png",
+  intrepidi: "intrepidi.png",
   le_bluez: "le_bluez.png",
   leffe_team: "leffe_team.png",
   maiori_music_and_sun: "maiori_music_and_sun.png",
+  f_c_intrepidi: "intrepidi.png",
   vin_ca_percoc: "vin_ca_percoc.png",
   f_c_vin_ca_percoc: "vin_ca_percoc.png",
 };
